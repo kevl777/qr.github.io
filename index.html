@@ -247,13 +247,26 @@
           Telegram.WebApp.showScanQrPopup({
             text: "Наведите камеру на QR-код",
             onResult: function (result) {
+              // Остановка сканера после успешного сканирования
               if (result && result.length > 0) {
                 document.getElementById("searchInput").value = result;
                 searchClient(result);
+                Telegram.WebApp.closeScanQrPopup(); // Закрываем сканер
               }
             },
             onError: function (error) {
-              console.error("Ошибка сканера:", error);
+              // Тихо игнорируем ошибки
+              console.warn("Ошибка сканера:", error);
+              // Дополнительно: можно перезапустить сканер через 1-2 секунды
+              setTimeout(() => {
+                if (!document.getElementById("searchInput").value) {
+                  Telegram.WebApp.showScanQrPopup({
+                    text: "Наведите камеру на QR-код",
+                    onResult: arguments.callee,
+                    onError: arguments.callee,
+                  });
+                }
+              }, 2000);
             },
           });
         } else {
