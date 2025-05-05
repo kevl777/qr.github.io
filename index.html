@@ -105,17 +105,6 @@
         height: 50px;
       }
 
-      #reader {
-        display: none;
-        width: 100%;
-        height: 100vh;
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 1000;
-        background: black;
-      }
-
       .scanner-container {
         position: relative;
         width: 100%;
@@ -168,10 +157,6 @@
         <!-- Блок для отображения результата -->
         <div class="result-card" id="resultCard"></div>
       </div>
-    </div>
-
-    <div id="reader" class="scanner-container">
-      <button class="close-scanner" onclick="toggleQR()">✕</button>
     </div>
 
     <script>
@@ -257,43 +242,22 @@
         }
       }
 
-      async function toggleQR() {
-        const reader = document.getElementById('reader');
-        const isVisible = reader.style.display === 'block';
-        
-        if (!isVisible) {
-          reader.style.display = 'block';
-          try {
-            // Используем асинхронную инициализацию
-            const html5QrCode = new Html5Qrcode("reader");
-            
-            await html5QrCode.start(
-              { facingMode: "environment" }, // Задняя камера
-              { 
-                fps: 5, // Снизили частоту кадров для лучшей фокусировки
-                qrbox: { width: 300, height: 300 } // Увеличили область сканирования
-              },
-              async (decodedText) => {
-                reader.style.display = 'none'; // Скрываем сканер после считывания
-                
-                if (decodedText && decodedText.trim()) {
-                  document.getElementById('searchInput').value = decodedText;
-                  searchClient(decodedText);
-                }
-              },
-              (errorMessage) => {
-                // Игнорируем ошибки типа "No code found"
-                if (errorMessage.includes("No code found")) return;
-                console.error("Ошибка сканирования:", errorMessage);
-                alert(`Ошибка: ${errorMessage}`);
+      function toggleQR() {
+        if (Telegram.WebApp.isVersionAtLeast("6.1")) {
+          Telegram.WebApp.showScanQrPopup({
+            text: "Наведите камеру на QR-код",
+            onResult: function (result) {
+              if (result && result.length > 0) {
+                document.getElementById("searchInput").value = result;
+                searchClient(result);
               }
-            );
-          } catch (error) {
-            console.error("Ошибка запуска сканера:", error);
-            alert('Не удалось запустить камеру');
-          }
+            },
+            onError: function (error) {
+              console.error("Ошибка сканера:", error);
+            },
+          });
         } else {
-          reader.style.display = 'none';
+          alert("Ваша версия Telegram слишком старая");
         }
       }
 
