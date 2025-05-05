@@ -36,21 +36,20 @@
       qrbox: { width: 250, height: 250 }
     },
     (decodedText, decodedResult) => {
-      console.log(`QR code detected: ${decodedText}`);
-      
-      // Дополнительная проверка: убедитесь, что decodedText — это номер карты
-      if (decodedText && decodedText.length >= 6) { // Пример проверки длины номера карты
-        Telegram.WebApp.sendData(decodedText); // Отправляем обратно в бота
+      console.log(`[QR SCAN] Обнаружен QR: ${decodedText}`);
+
+      if (decodedText && decodedText.trim().length >= 6) {
+        console.log(`[QR DATA] Отправка данных в Telegram: ${decodedText}`);
+        Telegram.WebApp.sendData(JSON.stringify({ cardNumber: decodedText }));
         Telegram.WebApp.close(); // Закрываем miniApp
       } else {
-        console.error("Invalid QR data:", decodedText);
-        alert("QR-код не содержит допустимый номер карты.");
+        alert("Неверный формат номера карты");
       }
     },
     (errorMessage) => {
-      console.warn("QR scan error:", errorMessage);
+      console.warn(`[QR ERROR] ${errorMessage}`);
     }
-  ).catch(err => console.error("CAMERA ERROR:", err));
+  ).catch(err => console.error("[CAMERA ERROR]", err));
 </script>
 </body>
 </html>
