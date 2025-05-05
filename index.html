@@ -2,58 +2,81 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Сканер карты QR</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
       font-family: sans-serif;
       text-align: center;
-      padding: 2em;
+      padding: 1em;
+    }
+    h2 {
+      font-size: 1.5em;
+      margin-bottom: 1em;
+    }
+    #reader {
+      width: 90%;
+      max-width: 500px;
+      margin: auto;
+      border: 1px solid #ccc;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    #reader__dashboard_section_csr span {
+      font-size: 1.2em;
+    }
+    #reader__dashboard_section_csr select {
+      font-size: 1.2em;
+      padding: 5px;
     }
     #result {
-      margin-top: 1em;
-      font-size: 1.2em;
+      margin-top: 1.5em;
+      font-size: 1.3em;
       font-weight: bold;
-    }
-    a.button {
-      display: inline-block;
-      margin-top: 1em;
-      padding: 0.7em 1.5em;
-      background-color: #2a9d8f;
-      color: white;
-      border-radius: 8px;
-      text-decoration: none;
+      word-wrap: break-word;
     }
   </style>
 </head>
 <body>
-  <h2>📷 Отсканируйте QR-код с номером карты</h2>
-  <div id="reader" style="width: 300px; margin: auto;"></div>
-  <div id="result"></div>
+  <h2>📷 Отсканируйте QR-код</h2>
+  <div id="reader"></div>
+  <div id="result">Сканирование...</div>
 
   <script>
     function onScanSuccess(decodedText, decodedResult) {
-      document.getElementById("result").innerText = "Найден QR: " + decodedText;
+      console.log(`Code matched = ${decodedText}`, decodedResult);
+      document.getElementById("result").innerText = "Найден код: " + decodedText;
+      html5QrcodeScanner.clear();
 
-      // Deep link обратно в бота с номером карты
-      const telegramBotUsername = "phcrm_balance_bot"; // без @
-      const deepLink = `https://t.me/${telegramBotUsername}?start=${decodedText}`;
+      const baseDeepLink = window.location.hash.substring(1);
 
-      const link = document.createElement("a");
-      link.href = deepLink;
-      link.innerText = "🔗 Открыть в Telegram";
-      link.className = "button";
-      document.getElementById("result").appendChild(document.createElement("br"));
-      document.getElementById("result").appendChild(link);
-
-      html5QrcodeScanner.clear(); // Останавливаем сканер
+      if (baseDeepLink && baseDeepLink.includes("t.me")) {
+        const finalDeepLink = baseDeepLink + decodedText;
+        console.log(`Redirecting to: ${finalDeepLink}`);
+        
+        document.getElementById("result").innerText = "Перенаправление в Telegram...";
+        window.location.href = finalDeepLink;
+      } else {
+        console.error("Base deep link not found or invalid in URL hash!");
+        document.getElementById("result").innerText = "Ошибка: Не удалось получить ссылку для возврата в бот.";
+      }
     }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
-      fps: 10,
-      qrbox: 250
-    });
-    html5QrcodeScanner.render(onScanSuccess);
+    function onScanFailure(error) {
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner(
+      "reader", 
+      { 
+        fps: 10, 
+        qrbox: { width: 250, height: 250 },
+        facingMode: "environment" 
+      }, 
+      false);
+      
+    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
   </script>
 </body>
 </html>
