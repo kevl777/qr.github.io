@@ -24,28 +24,33 @@
 <body>
   <div id="reader"></div>
 
-  <script>
-    window.Telegram.WebApp.ready(); // Обязательная инициализация
+<script>
+  window.Telegram.WebApp.ready(); // Обязательная инициализация
 
-    const reader = new Html5Qrcode("reader");
+  const reader = new Html5Qrcode("reader");
 
-    reader.start(
-      { facingMode: "environment" },
-      {
-        fps: 10,
-        qrbox: { width: 250, height: 250 }
-      },
-      (decodedText, decodedResult) => {
-        console.log(`QR code detected: ${decodedText}`);
-        
-        // Возврат результата в Telegram WebApp
+  reader.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: { width: 250, height: 250 }
+    },
+    (decodedText, decodedResult) => {
+      console.log(`QR code detected: ${decodedText}`);
+      
+      // Дополнительная проверка: убедитесь, что decodedText — это номер карты
+      if (decodedText && decodedText.length >= 6) { // Пример проверки длины номера карты
         Telegram.WebApp.sendData(decodedText); // Отправляем обратно в бота
         Telegram.WebApp.close(); // Закрываем miniApp
-      },
-      (errorMessage) => {
-        // Игнорируем ошибки
+      } else {
+        console.error("Invalid QR data:", decodedText);
+        alert("QR-код не содержит допустимый номер карты.");
       }
-    ).catch(err => console.error("CAMERA ERROR:", err));
-  </script>
+    },
+    (errorMessage) => {
+      console.warn("QR scan error:", errorMessage);
+    }
+  ).catch(err => console.error("CAMERA ERROR:", err));
+</script>
 </body>
 </html>
