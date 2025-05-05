@@ -258,56 +258,46 @@
       }
 
       async function toggleQR() {
-        const reader = document.getElementById("reader");
-        const isVisible = reader.style.display === "block";
-
+        const reader = document.getElementById('reader');
+        const isVisible = reader.style.display === 'block';
+        
         if (!isVisible) {
-          reader.style.display = "block";
+          reader.style.display = 'block';
           try {
-            // Проверяем наличие элемента для рендера
-            if (!document.getElementById("reader")) {
-              throw new Error("Элемент для сканера не найден");
-            }
-
+            // Используем асинхронную инициализацию сканера
             const html5QrCode = new Html5Qrcode("reader");
-
+            
             await html5QrCode.start(
               { facingMode: "environment" }, // Задняя камера
               { fps: 10, qrbox: { width: 250, height: 250 } }, // Настройки сканирования
               async (decodedText) => {
-                reader.style.display = "none"; // Скрываем сканер после считывания
-
+                reader.style.display = 'none'; // Скрываем сканер после считывания
+                
                 // Проверяем наличие данных
                 if (decodedText && decodedText.trim()) {
-                  document.getElementById("searchInput").value = decodedText;
+                  document.getElementById('searchInput').value = decodedText;
                   searchClient(decodedText);
                 } else {
-                  alert("QR-код пустой или некорректный");
+                  alert('QR-код пустой или некорректный');
                 }
               },
               (errorMessage) => {
                 console.error("Ошибка сканирования:", errorMessage);
                 if (errorMessage.includes("No code found")) {
-                  alert("QR-код не обнаружен");
-                } else if (
-                  errorMessage.includes(
-                    "D: No MultiFormat Readers were able to detect the code."
-                  )
-                ) {
-                  alert("Не удалось распознать QR-код. Попробуйте другой.");
+                  alert('QR-код не обнаружен');
+                } else if (errorMessage.includes("D: No MultiFormat Readers were able to detect the code.")) {
+                  alert('Не удалось распознать QR-код. Попробуйте другой.');
                 } else {
                   alert(`Ошибка: ${errorMessage}`);
                 }
               }
             );
           } catch (error) {
-            console.error("Ошибка инициализации сканера:", error);
-            alert(
-              "Не удалось запустить камеру. Убедитесь, что устройство поддерживает доступ к камере."
-            );
+            console.error("Ошибка запуска сканера:", error);
+            alert('Не удалось запустить камеру. Убедитесь, что устройство поддерживает доступ к камере.');
           }
         } else {
-          reader.style.display = "none";
+          reader.style.display = 'none';
         }
       }
 
