@@ -264,10 +264,15 @@
         if (!isVisible) {
           reader.style.display = "block";
           try {
+            // Проверяем наличие элемента для рендера
+            if (!document.getElementById("reader")) {
+              throw new Error("Элемент для сканера не найден");
+            }
+
             const html5QrCode = new Html5Qrcode("reader");
 
             await html5QrCode.start(
-              { facingMode: "environment" }, // Используем заднюю камеру
+              { facingMode: "environment" }, // Задняя камера
               { fps: 10, qrbox: { width: 250, height: 250 } }, // Настройки сканирования
               async (decodedText) => {
                 reader.style.display = "none"; // Скрываем сканер после считывания
@@ -281,7 +286,7 @@
                 }
               },
               (errorMessage) => {
-                console.warn("Ошибка сканирования:", errorMessage);
+                console.error("Ошибка сканирования:", errorMessage);
                 if (errorMessage.includes("No code found")) {
                   alert("QR-код не обнаружен");
                 } else if (
@@ -289,14 +294,14 @@
                     "D: No MultiFormat Readers were able to detect the code."
                   )
                 ) {
-                  alert("Не удалось распознать QR-код. Попробуйте другой код.");
+                  alert("Не удалось распознать QR-код. Попробуйте другой.");
                 } else {
                   alert(`Ошибка: ${errorMessage}`);
                 }
               }
             );
           } catch (error) {
-            console.error("Ошибка запуска сканера:", error);
+            console.error("Ошибка инициализации сканера:", error);
             alert(
               "Не удалось запустить камеру. Убедитесь, что устройство поддерживает доступ к камере."
             );
