@@ -3,53 +3,104 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Сканер QR</title>
+  <title>PrimeHill CRM</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      width: 100%;
-      background-color: black;
-      overflow: hidden;
-    }
-    #reader {
-      width: 100vw;
-      height: 100vh;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input, button { margin: 10px 0; padding: 10px; width: 100%; }
+    #reader { width: 100vw; height: 100vh; display: none; }
   </style>
 </head>
 <body>
+  <h2>🔍 Поиск клиента</h2>
+  <input type="text" id="searchInput" placeholder="Номер карты или телефона" />
+  <button onclick="searchByInput()">Поиск</button>
+  <button onclick="toggleQR()">📷 Сканировать QR</button>
+
   <div id="reader"></div>
+  <div id="result"></div>
 
-<script>
-  window.Telegram.WebApp.ready(); // Обязательная инициализация
+  <script>
+    // Инициализация Telegram WebApp
+    Telegram.WebApp.ready();
 
-  const reader = new Html5Qrcode("reader");
+    // Получение токена из URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
 
-  reader.start(
-    { facingMode: "environment" },
-    {
-      fps: 10,
-      qrbox: { width: 250, height: 250 }
-    },
-    (decodedText, decodedResult) => {
-      console.log(`[QR SCAN] Обнаружен QR: ${decodedText}`);
-
-      if (decodedText && decodedText.trim().length >= 6) {
-        console.log(`[QR DATA] Отправка данных в Telegram: ${decodedText}`);
-        Telegram.WebApp.sendData(JSON.stringify({ cardNumber: decodedText }));
-        Telegram.WebApp.close(); // Закрываем miniApp
-      } else {
-        alert("Неверный формат номера карты");
-      }
-    },
-    (errorMessage) => {
-      console.warn(`[QR ERROR] ${errorMessage}`);
+    if (!token) {
+      document.body.innerHTML = "<p>❌ Токен не найден.</p>";
+      throw new Error("Токен не указан");
     }
-  ).catch(err => console.error("[CAMERA ERROR]", err));
-</script>
+
+    // Сканирование QR
+    async function toggleQR() {
+      const reader = document.getElementById('reader');
+      const isVisible = reader.style.display === 'block';
+      
+      if (!isVisible) {
+        reader.style.display = 'block';
+        const html5QrCode = new Html5Qrcode("reader");
+        
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          async (decodedText) => {
+            reader.style.display = 'none';
+            document.getElementById('searchInput').value = decodedText;
+            await search(decodedText);
+          },
+          (errorMessage) => console.warn("Ошибка сканирования:", errorMessage)
+        );
+      } else {
+        reader.style.display = 'none';
+      }
+    }
+
+    // Поиск по вводу
+    async function searchByInput() {
+      const text = document.getElementById('searchInput').value.trim();
+      if (!text) {
+        alert("Введите данные!");
+        return;
+      }
+      await search(text);
+    }
+
+    // Отправка запроса к loyaltyAPI
+    async function search(query) {
+      const url = `https://loyalty-api.p-h.app/api/v3/GuestInfo/${token}`;
+      const body = query.includes('@') || query.length < 10 
+        ? { Phone: query } 
+        : { CardNumber: query };
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+        const resultDiv = document.getElementById('result');
+        
+        if (data.Status === 1) {
+          resultDiv.innerHTML = `
+            <h3>👤 Клиент найден</h3>
+            <p>ФИО: ${data.Lastname} ${data.Firstname} ${data.MiddleName}</p>
+            <p>Телефон: ${data.Phone}</p>
+            <p>Карта: ${data.CardNumber}</p>
+            <p>Бонусы: ${data.BonusBalance}</p>
+          `;
+        } else {
+          resultDiv.innerHTML = `<p>⚠️ ${data.ErrorMessage}</p>`;
+        }
+      } catch (error) {
+        console.error("Ошибка API:", error);
+        document.getElementById('result').innerHTML = "<p>❌ Ошибка подключения к API.</p>";
+      }
+    }
+  </script>
 </body>
 </html>
