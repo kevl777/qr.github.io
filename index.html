@@ -2,53 +2,53 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Сканер карты QR</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Сканер QR</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 1em;
-    }
-    h2 {
-      font-size: 1.5em;
-      margin-bottom: 1em;
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background-color: #000;
     }
     #reader {
-      width: 90%;
-      max-width: 500px;
-      margin: auto;
-      border: 1px solid #ccc;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-      border-radius: 8px;
-      overflow: hidden;
+      width: 100% !important;
+      height: 100% !important;
+      position: absolute;
+      top: 0;
+      left: 0;
+      border: none !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
     }
-    #reader__dashboard_section_csr span {
-      font-size: 1.2em;
+    #reader__header_message {
+        display: none !important;
     }
-    #reader__dashboard_section_csr select {
-      font-size: 1.2em;
-      padding: 5px;
+    #reader__dashboard_section_csr {
+        display: none !important;
+    }
+    #reader__dashboard_section_swaplink {
+         display: none !important;
+    }
+    #reader__scan_region video {
+        object-fit: cover;
     }
     #result {
-      margin-top: 1.5em;
-      font-size: 1.3em;
-      font-weight: bold;
-      word-wrap: break-word;
+      display: none;
     }
   </style>
 </head>
 <body>
-  <h2>📷 Отсканируйте QR-код</h2>
   <div id="reader"></div>
-  <div id="result">Сканирование...</div>
+  <div id="result"></div>
 
   <script>
     function onScanSuccess(decodedText, decodedResult) {
       console.log(`Code matched = ${decodedText}`, decodedResult);
-      document.getElementById("result").innerText = "Найден код: " + decodedText;
-      html5QrcodeScanner.clear();
+      html5QrcodeScanner.clear().catch(err => console.error("Error clearing scanner:", err));
 
       const baseDeepLink = window.location.hash.substring(1);
       let finalDeepLink = null;
@@ -56,43 +56,10 @@
       if (baseDeepLink && baseDeepLink.includes("t.me") && baseDeepLink.includes("?start=QR_")) {
         finalDeepLink = baseDeepLink + decodedText;
         console.log(`Constructed finalDeepLink: ${finalDeepLink}`);
-        document.getElementById("result").innerText = "Готовим ссылку для Telegram...";
+        window.location.href = finalDeepLink;
       } else {
         console.error("Base deep link not found or invalid in URL hash! Hash: ", window.location.hash);
-        document.getElementById("result").innerText = "Ошибка: Не удалось получить корректную ссылку для возврата в бот.";
-        return;
       }
-
-      try {
-        document.getElementById("result").innerText = "Пытаемся открыть Telegram...";
-        const link = document.createElement('a');
-        link.href = finalDeepLink;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        console.log("Simulated click on link to:", finalDeepLink);
-      } catch (e) {
-        console.error("Error simulating link click:", e);
-        document.getElementById("result").innerText = "Не удалось автоматически открыть Telegram. Используйте кнопку ниже.";
-        showManualLink(finalDeepLink);
-      }
-    }
-
-    function showManualLink(url) {
-      const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = "Найден код: " + url.substring(url.lastIndexOf('_') + 1) + "<br>";
-      const manualLink = document.createElement('a');
-      manualLink.href = url;
-      manualLink.innerText = "🔗 Открыть в Telegram";
-      manualLink.style.display = 'inline-block';
-      manualLink.style.marginTop = '1em';
-      manualLink.style.padding = '0.8em 1.5em';
-      manualLink.style.backgroundColor = '#007bff';
-      manualLink.style.color = 'white';
-      manualLink.style.textDecoration = 'none';
-      manualLink.style.borderRadius = '5px';
-      resultDiv.appendChild(manualLink);
     }
 
     function onScanFailure(error) {
@@ -102,8 +69,12 @@
       "reader", 
       { 
         fps: 10, 
-        qrbox: { width: 250, height: 250 },
-        facingMode: "environment" 
+        qrbox: { width: 200, height: 200 },
+        facingMode: "environment",
+        experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+        },
+        aspectRatio: 1.0
       }, 
       false);
       
