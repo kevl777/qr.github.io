@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Сканер карты QR</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      text-align: center;
+      padding: 2em;
+    }
+    #result {
+      margin-top: 1em;
+      font-size: 1.2em;
+      font-weight: bold;
+    }
+    a.button {
+      display: inline-block;
+      margin-top: 1em;
+      padding: 0.7em 1.5em;
+      background-color: #2a9d8f;
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>📷 Отсканируйте QR-код с номером карты</h2>
+  <div id="reader" style="width: 300px; margin: auto;"></div>
+  <div id="result"></div>
+
+  <script>
+    function onScanSuccess(decodedText, decodedResult) {
+      document.getElementById("result").innerText = "Найден QR: " + decodedText;
+
+      // Deep link обратно в бота с номером карты
+      const telegramBotUsername = "phcrm_balance_bot"; // без @
+      const deepLink = `https://t.me/${telegramBotUsername}?start=${decodedText}`;
+
+      const link = document.createElement("a");
+      link.href = deepLink;
+      link.innerText = "🔗 Открыть в Telegram";
+      link.className = "button";
+      document.getElementById("result").appendChild(document.createElement("br"));
+      document.getElementById("result").appendChild(link);
+
+      html5QrcodeScanner.clear(); // Останавливаем сканер
+    }
+
+    const html5QrcodeScanner = new Html5QrcodeScanner("reader", {
+      fps: 10,
+      qrbox: 250
+    });
+    html5QrcodeScanner.render(onScanSuccess);
+  </script>
+</body>
+</html>
