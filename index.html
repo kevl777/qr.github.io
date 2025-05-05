@@ -264,37 +264,33 @@
         if (!isVisible) {
           reader.style.display = 'block';
           try {
-            // Используем асинхронную инициализацию сканера
+            // Используем асинхронную инициализацию
             const html5QrCode = new Html5Qrcode("reader");
             
             await html5QrCode.start(
               { facingMode: "environment" }, // Задняя камера
-              { fps: 10, qrbox: { width: 250, height: 250 } }, // Настройки сканирования
+              { 
+                fps: 5, // Снизили частоту кадров для лучшей фокусировки
+                qrbox: { width: 300, height: 300 } // Увеличили область сканирования
+              },
               async (decodedText) => {
                 reader.style.display = 'none'; // Скрываем сканер после считывания
                 
-                // Проверяем наличие данных
                 if (decodedText && decodedText.trim()) {
                   document.getElementById('searchInput').value = decodedText;
                   searchClient(decodedText);
-                } else {
-                  alert('QR-код пустой или некорректный');
                 }
               },
               (errorMessage) => {
+                // Игнорируем ошибки типа "No code found"
+                if (errorMessage.includes("No code found")) return;
                 console.error("Ошибка сканирования:", errorMessage);
-                if (errorMessage.includes("No code found")) {
-                  alert('QR-код не обнаружен');
-                } else if (errorMessage.includes("D: No MultiFormat Readers were able to detect the code.")) {
-                  alert('Не удалось распознать QR-код. Попробуйте другой.');
-                } else {
-                  alert(`Ошибка: ${errorMessage}`);
-                }
+                alert(`Ошибка: ${errorMessage}`);
               }
             );
           } catch (error) {
             console.error("Ошибка запуска сканера:", error);
-            alert('Не удалось запустить камеру. Убедитесь, что устройство поддерживает доступ к камере.');
+            alert('Не удалось запустить камеру');
           }
         } else {
           reader.style.display = 'none';
