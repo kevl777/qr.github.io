@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Сканер QR</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     html, body {
@@ -46,39 +47,70 @@
   <div id="result"></div>
 
   <script>
+    Telegram.WebApp.ready();
+
     function onScanSuccess(decodedText, decodedResult) {
       console.log(`Code matched = ${decodedText}`, decodedResult);
       html5QrcodeScanner.clear().catch(err => console.error("Error clearing scanner:", err));
-
-      const baseDeepLink = window.location.hash.substring(1);
-      let finalDeepLink = null;
-
-      if (baseDeepLink && baseDeepLink.includes("t.me") && baseDeepLink.includes("?start=QR_")) {
-        finalDeepLink = baseDeepLink + decodedText;
-        console.log(`Constructed finalDeepLink: ${finalDeepLink}`);
-        window.location.href = finalDeepLink;
-      } else {
-        console.error("Base deep link not found or invalid in URL hash! Hash: ", window.location.hash);
+      
+      try {
+          console.log("Sending data to bot:", decodedText);
+          Telegram.WebApp.sendData(decodedText);
+          setTimeout(() => {
+              Telegram.WebApp.close();
+          }, 100); 
+      } catch (e) {
+          console.error("Error sending data via Telegram WebApp:", e);
+          const resultDiv = document.getElementById("result");
+          if(resultDiv) {
+              resultDiv.innerText = "Ошибка отправки данных боту.";
+              resultDiv.style.display = 'block';
+              resultDiv.style.color = 'red';
+              resultDiv.style.position = 'absolute';
+              resultDiv.style.top = '50%';
+              resultDiv.style.left = '50%';
+              resultDiv.style.transform = 'translate(-50%, -50%)';
+              resultDiv.style.backgroundColor = 'white';
+              resultDiv.style.padding = '1em';
+              resultDiv.style.borderRadius = '5px';
+          }
       }
     }
 
     function onScanFailure(error) {
     }
 
-    const html5QrcodeScanner = new Html5QrcodeScanner(
-      "reader", 
-      { 
-        fps: 10, 
-        qrbox: { width: 200, height: 200 },
-        facingMode: "environment",
-        experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-        },
-        aspectRatio: 1.0
-      }, 
-      false);
-      
-    html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    let html5QrcodeScanner = null; 
+    try {
+        html5QrcodeScanner = new Html5QrcodeScanner(
+          "reader", 
+          { 
+            fps: 10, 
+            qrbox: { width: 200, height: 200 },
+            facingMode: "environment",
+            experimentalFeatures: {
+                useBarCodeDetectorIfSupported: true
+            },
+            aspectRatio: 1.0
+          }, 
+          false);
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    } catch (e) {
+        console.error("Failed to initialize QR Scanner:", e);
+        const resultDiv = document.getElementById("result");
+        if(resultDiv) {
+             resultDiv.innerText = "Ошибка инициализации сканера.";
+             resultDiv.style.display = 'block';
+             resultDiv.style.color = 'red';
+             resultDiv.style.position = 'absolute';
+             resultDiv.style.top = '50%';
+             resultDiv.style.left = '50%';
+             resultDiv.style.transform = 'translate(-50%, -50%)';
+             resultDiv.style.backgroundColor = 'white';
+             resultDiv.style.padding = '1em';
+             resultDiv.style.borderRadius = '5px';
+        }
+    }
   </script>
 </body>
 </html>
