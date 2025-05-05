@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Сканер QR</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     html, body {
@@ -24,6 +25,8 @@
   <div id="reader"></div>
 
   <script>
+    window.Telegram.WebApp.ready(); // Обязательная инициализация
+
     const reader = new Html5Qrcode("reader");
 
     reader.start(
@@ -34,16 +37,13 @@
       },
       (decodedText, decodedResult) => {
         console.log(`QR code detected: ${decodedText}`);
-        const baseDeepLink = window.location.hash.substring(1);
-        if (baseDeepLink.includes("t.me") && baseDeepLink.includes("?start=QR_")) {
-          const finalDeepLink = baseDeepLink + decodedText;
-          reader.stop().then(() => {
-            window.location.href = finalDeepLink;
-          }).catch(console.error);
-        }
+        
+        // Возврат результата в Telegram WebApp
+        Telegram.WebApp.sendData(decodedText); // Отправляем обратно в бота
+        Telegram.WebApp.close(); // Закрываем miniApp
       },
       (errorMessage) => {
-        // просто игнорируем ошибки
+        // Игнорируем ошибки
       }
     ).catch(err => console.error("CAMERA ERROR:", err));
   </script>
