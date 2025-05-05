@@ -8,7 +8,6 @@
     />
     <title>PH CRM Balance</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
       :root {
         --primary-color: #1e90ff;
@@ -246,28 +245,19 @@
         if (Telegram.WebApp.isVersionAtLeast("6.1")) {
           Telegram.WebApp.showScanQrPopup({
             text: "Наведите камеру на QR-код",
-            onResult: function (result) {
-              // Остановка сканера после успешного сканирования
-              if (result && result.length > 0) {
-                document.getElementById("searchInput").value = result;
+            onResult: function(result) {
+              // Закрываем сканер
+              Telegram.WebApp.closeScanQrPopup();
+              
+              // Вставляем данные в поле ввода и запускаем поиск
+              if (result && result.trim()) {
+                document.getElementById('searchInput').value = result;
                 searchClient(result);
-                Telegram.WebApp.closeScanQrPopup(); // Закрываем сканер
               }
             },
-            onError: function (error) {
-              // Тихо игнорируем ошибки
-              console.warn("Ошибка сканера:", error);
-              // Дополнительно: можно перезапустить сканер через 1-2 секунды
-              setTimeout(() => {
-                if (!document.getElementById("searchInput").value) {
-                  Telegram.WebApp.showScanQrPopup({
-                    text: "Наведите камеру на QR-код",
-                    onResult: arguments.callee,
-                    onError: arguments.callee,
-                  });
-                }
-              }, 2000);
-            },
+            onError: function(error) {
+              console.error("Ошибка сканера:", error);
+            }
           });
         } else {
           alert("Ваша версия Telegram слишком старая");
