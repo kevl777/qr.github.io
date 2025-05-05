@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Сканер карт QR</title>
+  <title>Сканер карты QR</title>
   <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <style>
     body {
@@ -51,17 +51,48 @@
       html5QrcodeScanner.clear();
 
       const baseDeepLink = window.location.hash.substring(1);
+      let finalDeepLink = null;
 
-      if (baseDeepLink && baseDeepLink.includes("t.me")) {
-        const finalDeepLink = baseDeepLink + decodedText;
-        console.log(`Redirecting to: ${finalDeepLink}`);
-        
-        document.getElementById("result").innerText = "Перенаправление в Telegram...";
-        window.location.href = finalDeepLink;
+      if (baseDeepLink && baseDeepLink.includes("t.me") && baseDeepLink.includes("?start=QR_")) {
+        finalDeepLink = baseDeepLink + decodedText;
+        console.log(`Constructed finalDeepLink: ${finalDeepLink}`);
+        document.getElementById("result").innerText = "Готовим ссылку для Telegram...";
       } else {
-        console.error("Base deep link not found or invalid in URL hash!");
-        document.getElementById("result").innerText = "Ошибка: Не удалось получить ссылку для возврата в бот.";
+        console.error("Base deep link not found or invalid in URL hash! Hash: ", window.location.hash);
+        document.getElementById("result").innerText = "Ошибка: Не удалось получить корректную ссылку для возврата в бот.";
+        return;
       }
+
+      try {
+        document.getElementById("result").innerText = "Пытаемся открыть Telegram...";
+        const link = document.createElement('a');
+        link.href = finalDeepLink;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log("Simulated click on link to:", finalDeepLink);
+      } catch (e) {
+        console.error("Error simulating link click:", e);
+        document.getElementById("result").innerText = "Не удалось автоматически открыть Telegram. Используйте кнопку ниже.";
+        showManualLink(finalDeepLink);
+      }
+    }
+
+    function showManualLink(url) {
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "Найден код: " + url.substring(url.lastIndexOf('_') + 1) + "<br>";
+      const manualLink = document.createElement('a');
+      manualLink.href = url;
+      manualLink.innerText = "🔗 Открыть в Telegram";
+      manualLink.style.display = 'inline-block';
+      manualLink.style.marginTop = '1em';
+      manualLink.style.padding = '0.8em 1.5em';
+      manualLink.style.backgroundColor = '#007bff';
+      manualLink.style.color = 'white';
+      manualLink.style.textDecoration = 'none';
+      manualLink.style.borderRadius = '5px';
+      resultDiv.appendChild(manualLink);
     }
 
     function onScanFailure(error) {
@@ -80,3 +111,4 @@
   </script>
 </body>
 </html>
+
