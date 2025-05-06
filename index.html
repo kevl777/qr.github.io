@@ -538,7 +538,13 @@
           );
           lastGetDiscountResponse = await response.json();
 
+          // Логируем ответ GetDiscount для отладки
+          console.log("GetDiscount response:", JSON.stringify(lastGetDiscountResponse, null, 2));
+
           if (response.status === 200 && lastGetDiscountResponse.Status === 1) {
+            // Сохраняем оригинальный API ответ для дальнейшего использования
+            currentOrderDetails.getDiscountResponse = lastGetDiscountResponse;
+            
             // Сумма после применения введенного процента скидки (локальный расчет)
             const sumAfterUserPercentageDiscount = currentOrderDetails.OrderSumWithDiscount;
             // Используем OrderSumWithCardDiscount от API, если есть, иначе локально рассчитанную сумму
@@ -611,6 +617,13 @@
         // OrderSumWithCardDiscount is from GetDiscount response.
         const orderSumAfterCardDiscount = lastGetDiscountResponse.OrderSumWithCardDiscount || currentOrderDetails.OrderSumWithDiscount;
         const finalOrderSumWithDiscount = orderSumAfterCardDiscount - bonusWriteOff - depositWriteOff;
+        
+        // Получаем точное PriceWithDiscount из ответа GetDiscount
+        let exactPriceWithDiscount = null;
+        if (lastGetDiscountResponse.Order && lastGetDiscountResponse.Order.length > 0) {
+          exactPriceWithDiscount = lastGetDiscountResponse.Order[0].PriceWithDiscount;
+          console.log("Using GetDiscount.PriceWithDiscount:", exactPriceWithDiscount);
+        }
 
         const closeOrderPayload = {
           ...currentOrderDetails,
@@ -622,10 +635,16 @@
           DepositWriteOff: depositWriteOff,
           Order: [{ 
             ...currentOrderDetails.Order[0],
-            PriceWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2))
+            // Используем ТОЧНО то же значение PriceWithDiscount, что вернул GetDiscount
+            PriceWithDiscount: exactPriceWithDiscount !== null ? exactPriceWithDiscount : parseFloat(finalOrderSumWithDiscount.toFixed(2))
           }],
-          OrderDate: new Date().toISOString().slice(0, 19).replace('T', ' ')
+          OrderDate: new Date().toISOString().slice(0, 19).replace('T', ' ') // Format: "YYYY-MM-DD HH:MM:SS"
         };
+        
+        // Удаляем лишнее поле, которое мы добавили для внутреннего использования
+        if (closeOrderPayload.getDiscountResponse) {
+          delete closeOrderPayload.getDiscountResponse;
+        }
 
         showLoading(true);
         // Логируем тело запроса в консоль браузера для отладки
