@@ -8,6 +8,7 @@
     />
     <title>PH CRM Balance</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
       :root {
         --primary-color: #1e90ff;
@@ -105,9 +106,21 @@
       }
 
       .scanner-container {
-        position: relative;
+        position: fixed;
+        top: 0;
+        left: 0;
         width: 100%;
         height: 100%;
+        background: var(--bg-color);
+        z-index: 1000;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .scanner-container.active {
+        display: flex;
       }
 
       .close-scanner {
@@ -120,6 +133,19 @@
         color: white;
         font-size: 24px;
         border: none;
+        cursor: pointer;
+        z-index: 1001;
+      }
+
+      #reader {
+        width: 100%;
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      #reader video {
+        width: 100%;
+        border-radius: var(--border-radius);
       }
     </style>
   </head>
@@ -158,6 +184,11 @@
       </div>
     </div>
 
+    <div class="scanner-container" id="scannerContainer">
+      <button class="close-scanner" onclick="closeScanner()">✕</button>
+      <div id="reader"></div>
+    </div>
+
     <script>
       // Инициализация Telegram WebApp
       Telegram.WebApp.ready();
@@ -178,6 +209,8 @@
         mainSection.style.display = "block";
         checkOrganizationRegistration();
       }
+
+      let html5QrcodeScanner = null;
 
       async function registerOrganization() {
         const tokenInput = document.getElementById("authToken");
@@ -242,40 +275,55 @@
       }
 
       function toggleQR() {
-        if (!Telegram.WebApp.isVersionAtLeast("6.1")) {
-          alert("Ваша версия Telegram слишком старая для сканирования QR-кодов. Пожалуйста, обновите приложение.");
-          return;
+        const scannerContainer = document.getElementById('scannerContainer');
+        scannerContainer.classList.add('active');
+
+        if (!html5QrcodeScanner) {
+          html5QrcodeScanner = new Html5Qrcode("reader");
         }
 
-        if (!Telegram.WebApp.isExpanded) {
-          Telegram.WebApp.expand();
+        const config = {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0
+        };
+
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          onScanFailure
+        );
+      }
+
+      function closeScanner() {
+        if (html5QrcodeScanner) {
+          html5QrcodeScanner.stop().then(() => {
+            const scannerContainer = document.getElementById('scannerContainer');
+            scannerContainer.classList.remove('active');
+          }).catch(err => {
+            console.error("Error stopping scanner:", err);
+          });
         }
+      }
 
-        Telegram.WebApp.showScanQrPopup({
-          text: "Наведите камеру на QR-код клиента",
-          onResult: function (result) {
-            if (!result) {
-              alert("Не удалось распознать QR-код. Попробуйте еще раз.");
-              return;
-            }
+      function onScanSuccess(decodedText, decodedResult) {
+        console.log("QR Code detected:", decodedText);
+        
+        // Проверяем, что это 6 цифр
+        if (/^\d{6}$/.test(decodedText)) {
+          const searchInput = document.getElementById("searchInput");
+          searchInput.value = decodedText;
+          searchClient(decodedText);
+          closeScanner();
+        } else {
+          alert("Неверный формат QR-кода. Ожидается 6 цифр.");
+        }
+      }
 
-            // Закрываем сканер
-            Telegram.WebApp.closeScanQrPopup();
-
-            // Очищаем предыдущие результаты
-            resultCard.innerHTML = "";
-
-            // Вставляем данные в поле ввода и запускаем поиск
-            const searchInput = document.getElementById("searchInput");
-            searchInput.value = result.trim();
-            searchClient(result.trim());
-          },
-          onError: function (error) {
-            console.error("Ошибка сканера:", error);
-            alert("Произошла ошибка при сканировании QR-кода. Пожалуйста, попробуйте еще раз.");
-            Telegram.WebApp.closeScanQrPopup();
-          }
-        });
+      function onScanFailure(error) {
+        // Обработка ошибок сканирования
+        console.warn(`QR scan error: ${error}`);
       }
 
       async function searchClient(input = null) {
