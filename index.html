@@ -116,7 +116,9 @@
         display: none;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
         padding: 20px;
+        box-sizing: border-box;
       }
 
       .scanner-container.active {
@@ -138,13 +140,18 @@
       }
 
       #reader {
-        width: 100%;
-        max-width: 600px;
-        margin: 0 auto;
+        width: 90%;
+        max-width: 400px;
+        min-height: 200px;
+        margin: 20px auto;
+        background-color: #333;
+        border: 1px solid #555;
+        overflow: hidden;
       }
 
       #reader video {
-        width: 100%;
+        width: 100% !important;
+        height: auto !important;
         border-radius: var(--border-radius);
       }
     </style>
@@ -279,13 +286,23 @@
         scannerContainer.classList.add('active');
 
         if (!html5QrcodeScanner) {
-          html5QrcodeScanner = new Html5Qrcode("reader");
+          html5QrcodeScanner = new Html5Qrcode("reader", true);
         }
 
         const config = {
           fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            let qrboxSize = Math.floor(minEdge * 0.8);
+            qrboxSize = Math.max(qrboxSize, 200);
+            qrboxSize = Math.min(qrboxSize, 300);
+            return {
+                width: qrboxSize,
+                height: qrboxSize
+            };
+          },
+          aspectRatio: 1.0,
+          rememberLastUsedCamera: true
         };
 
         html5QrcodeScanner.start(
@@ -293,17 +310,27 @@
           config,
           onScanSuccess,
           onScanFailure
-        );
+        ).catch(err => {
+          console.error("Не удалось запустить сканер:", err);
+          alert("Не удалось запустить камеру. Пожалуйста, проверьте разрешения и попробуйте снова. Ошибка: " + err);
+          closeScanner();
+        });
       }
 
       function closeScanner() {
-        if (html5QrcodeScanner) {
+        if (html5QrcodeScanner && html5QrcodeScanner.isScanning) {
           html5QrcodeScanner.stop().then(() => {
             const scannerContainer = document.getElementById('scannerContainer');
             scannerContainer.classList.remove('active');
+            console.log("Сканер остановлен.");
           }).catch(err => {
-            console.error("Error stopping scanner:", err);
+            console.error("Ошибка при остановке сканера:", err);
+            const scannerContainer = document.getElementById('scannerContainer');
+            scannerContainer.classList.remove('active');
           });
+        } else {
+            const scannerContainer = document.getElementById('scannerContainer');
+            scannerContainer.classList.remove('active');
         }
       }
 
