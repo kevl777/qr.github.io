@@ -539,13 +539,20 @@
           lastGetDiscountResponse = await response.json();
 
           if (response.status === 200 && lastGetDiscountResponse.Status === 1) {
+            // Сумма после применения введенного процента скидки (локальный расчет)
+            const sumAfterUserPercentageDiscount = currentOrderDetails.OrderSumWithDiscount;
+            // Используем OrderSumWithCardDiscount от API, если есть, иначе локально рассчитанную сумму
+            const displaySumAfterCardDiscount = (lastGetDiscountResponse.OrderSumWithCardDiscount !== undefined && lastGetDiscountResponse.OrderSumWithCardDiscount !== null) 
+                                                ? lastGetDiscountResponse.OrderSumWithCardDiscount 
+                                                : sumAfterUserPercentageDiscount;
+
             discountResultCard.innerHTML = `
               <h4>Результат расчета привилегий:</h4>
-              <p>Скидка по карте: ${lastGetDiscountResponse.CardDiscountSum || 0} руб.</p>
+              <p>Скидка по карте (от API): ${lastGetDiscountResponse.CardDiscountSum || 0} руб.</p>
               <p>Макс. списание бонусов: ${lastGetDiscountResponse.MaxBonus || 0}</p>
               <p>Макс. списание депозита: ${lastGetDiscountResponse.MaxDeposit || 0}</p>
-              <p>Итого к оплате (с учетом скидки по карте): ${lastGetDiscountResponse.OrderSumWithCardDiscount || orderSum}</p>
-              <p>Сообщение: ${lastGetDiscountResponse.Message || "Нет"}</p>
+              <p>Итого к оплате (с учетом скидки по карте): ${displaySumAfterCardDiscount.toFixed(2)} руб.</p>
+              <p>Сообщение от API: ${lastGetDiscountResponse.Message || "Нет"}</p>
               <button onclick="showCloseOrderOptions()">Перейти к закрытию заказа</button>
             `;
             // OrderSumWithCardDiscount is the sum after card discount but before bonus/deposit
@@ -607,13 +614,13 @@
 
 
         const closeOrderPayload = {
-          ...currentOrderDetails, // Uses OrderId, ParentOrderId, OrderNumber, ClientId, OrganizationId from previous step
-          OrderSumWithDiscount: finalOrderSumWithDiscount, // This is the crucial part, sum after ALL discounts
+          ...currentOrderDetails, 
+          OrderSumWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)), // Убедимся что это число с 2 знаками
           BonusWriteOff: bonusWriteOff,
           DepositWriteOff: depositWriteOff,
-          Order: [{ // Order items should reflect the final state
+          Order: [{ 
             ...currentOrderDetails.Order[0],
-            PriceWithDiscount: finalOrderSumWithDiscount // PriceWithDiscount for the item should also be the final sum
+            PriceWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)) // Обновляем и в заказе
           }]
         };
         // The problem statement implies the same body structure as api.txt
@@ -622,7 +629,9 @@
         // it seems BonusWriteOff and DepositWriteOff are the primary fields.
 
         showLoading(true);
-        discountResultCard.innerHTML = "Закрытие заказа..."; // Clear previous content
+        // Выводим тело запроса для отладки
+        const payloadString = JSON.stringify(closeOrderPayload, null, 2);
+        discountResultCard.innerHTML = `<h4>Отправляемый запрос для CloseOrder:</h4><pre style="text-align: left; background-color: #2b2b2b; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-break: break-all;">${payloadString}</pre><p style="margin-top:10px;">Закрытие заказа...</p>`;
 
         try {
           const response = await fetch(
