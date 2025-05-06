@@ -8,7 +8,6 @@
     />
     <title>PH CRM Balance</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
       :root {
         --primary-color: #1e90ff;
@@ -200,7 +199,7 @@
         </button>
 
         <!-- Кнопка поиска -->
-        <button onclick="searchClient()">🔍 Поиск гостя</button>
+        <button onclick="searchClient()">🔍 Поиск</button>
 
         <!-- Блок для отображения результата -->
         <div class="result-card" id="resultCard"></div>
@@ -253,27 +252,6 @@
       let currentClientIdentifier = null; // To store card/phone for re-fetching
       let lastGetDiscountResponse = null;
       let currentOrderDetails = {};
-
-      // --- Функция для отправки логов на сервер (бот) ---
-      function logActionToServer(actionDescription, detailsObject = {}) {
-        if (Telegram.WebApp && Telegram.WebApp.sendData) {
-          const logPayload = {
-            type: "webapp_log",
-            action: actionDescription,
-            details: detailsObject,
-            timestamp_utc_ms: Date.now()
-          };
-          try {
-            Telegram.WebApp.sendData(JSON.stringify(logPayload));
-            console.log("WebApp Log Sent: ", actionDescription, detailsObject); // Лог в консоль браузера для отладки
-          } catch (e) {
-            console.error("Error sending WebApp log data to bot:", e, logPayload);
-          }
-        } else {
-          console.warn("Telegram.WebApp.sendData is not available. Cannot send log to server.", actionDescription, detailsObject);
-        }
-      }
-      // --- Конец функции логирования ---
 
       async function registerOrganization() {
         const tokenInput = document.getElementById("authToken");
@@ -338,41 +316,23 @@
       }
 
       function toggleQR() {
-        logActionToServer("Button Clicked: Toggle QR Scanner"); // Логируем нажатие кнопки сканера
-        console.log("Starting QR scanner...");
-        const scannerContainer = document.getElementById('scannerContainer');
-        scannerContainer.classList.add('active');
-
-        if (!html5QrcodeScanner) {
-          html5QrcodeScanner = new Html5Qrcode("reader", true);
+        if (Telegram.WebApp.isVersionAtLeast("6.1")) {
+          Telegram.WebApp.showScanQrPopup({
+            text: "Наведите камеру на QR-код",
+            onResult: function(result) {
+              Telegram.WebApp.closeScanQrPopup();
+              if (result && result.trim()) {
+                document.getElementById("searchInput").value = result;
+                searchClient(result);
+              }
+            },
+            onError: function(error) {
+              console.error("Ошибка сканера:", error);
+            }
+          });
+        } else {
+          alert("Ваша версия Telegram слишком старая");
         }
-
-        const config = {
-          fps: 10,
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-            let qrboxSize = Math.floor(minEdge * 0.8);
-            qrboxSize = Math.max(qrboxSize, 200);
-            qrboxSize = Math.min(qrboxSize, 300);
-            return {
-                width: qrboxSize,
-                height: qrboxSize
-            };
-          },
-          aspectRatio: 1.0,
-          rememberLastUsedCamera: true
-        };
-
-        html5QrcodeScanner.start(
-          { facingMode: "environment" },
-          config,
-          onScanSuccess,
-          onScanFailure
-        ).catch(err => {
-          console.error("Не удалось запустить сканер:", err);
-          alert("Не удалось запустить камеру. Пожалуйста, проверьте разрешения и попробуйте снова. Ошибка: " + err);
-          closeScanner();
-        });
       }
 
       function closeScanner() {
@@ -394,7 +354,6 @@
 
       function onScanSuccess(decodedText, decodedResult) {
         console.log("QR Code detected:", decodedText);
-        logActionToServer("QR Scan Success", { rawResult: decodedText, decodedResult: decodedResult }); // Логируем успешное сканирование
         
         if (decodedText && decodedText.trim() !== "") {
           const searchInput = document.getElementById("searchInput");
@@ -409,14 +368,11 @@
       function onScanFailure(error) {
         // Обработка ошибок сканирования
         console.warn(`QR scan error: ${error}`);
-        logActionToServer("QR Scan Error", { error: error.toString() }); // Логируем ошибку сканера
-        alert("Произошла ошибка при сканировании QR-кода: " + error);
       }
 
       async function searchClient(input = null) {
         const searchInput = document.getElementById("searchInput");
         const query = input || searchInput.value.trim();
-        logActionToServer("Client Search Attempt", { query: query });
 
         if (!query) {
           alert("Введите данные для поиска!");
@@ -471,26 +427,22 @@
             <p>🏆 Уровень привилегий: ${data.LoyaltyLevel || "Без уровня"}</p>
             <button onclick="showCreateOrderForm()">Создать заказ</button>
           `;
-            logActionToServer("Client Search Success", { query: query, clientId: data.ClientId, response: data });
           } else {
             currentClientId = null;
             resultCard.innerHTML = `<p>⚠️ ${
               data.ErrorMessage || "Клиент не найден"
             }</p>`;
-            logActionToServer("Client Search Failed", { query: query, error: data.ErrorMessage, response: data });
           }
         } catch (error) {
           currentClientId = null;
           console.error("Ошибка API:", error);
           resultCard.innerHTML = "<p>❌ Ошибка подключения к API.</p>";
-          logActionToServer("Client Search API Error", { query: query, error: error.toString() });
         } finally {
           showLoading(false);
         }
       }
 
       function showCreateOrderForm() {
-        logActionToServer("Button Clicked: Create Order Form");
         if (!currentClientId) {
           alert("Сначала найдите клиента!");
           return;
@@ -510,17 +462,16 @@
       }
 
       async function calculateDiscount() {
-        const orderSumInput = document.getElementById("orderSum");
-        const discountPercentageInput = document.getElementById("discountPercentage");
-        const orderSum = parseFloat(orderSumInput.value);
-        const discountPercentage = parseFloat(discountPercentageInput.value) || 0;
-
-        logActionToServer("Button Clicked: Calculate Discount", { orderSum: orderSum, discountPercentage: discountPercentage, clientId: currentClientId });
-
         if (!currentClientId) {
           alert("Клиент не выбран.");
           return;
         }
+
+        const orderSumInput = document.getElementById("orderSum");
+        const discountPercentageInput = document.getElementById("discountPercentage");
+
+        const orderSum = parseFloat(orderSumInput.value);
+        const discountPercentage = parseFloat(discountPercentageInput.value) || 0;
 
         if (isNaN(orderSum) || orderSum <= 0) {
           alert("Введите корректную сумму заказа.");
@@ -587,15 +538,15 @@
               <p>Сообщение от API: ${lastGetDiscountResponse.Message || "Нет"}</p>
               <button onclick="showCloseOrderOptions()">Перейти к закрытию заказа</button>
             `;
-            logActionToServer("Calculate Discount Success", { request: currentOrderDetails, response: lastGetDiscountResponse });
+            // OrderSumWithCardDiscount is the sum after card discount but before bonus/deposit
+            // We need to update OrderSumWithDiscount for the CloseOrder call if bonuses/deposits are applied.
+            // This will be handled in showCloseOrderOptions or closeOrder function.
           } else {
             discountResultCard.innerHTML = `<p>⚠️ Ошибка расчета привилегий: ${lastGetDiscountResponse.ErrorMessage || "Неизвестная ошибка"}</p>`;
-            logActionToServer("Calculate Discount Failed", { request: currentOrderDetails, error: lastGetDiscountResponse.ErrorMessage, response: lastGetDiscountResponse });
           }
         } catch (error) {
           console.error("Ошибка API GetDiscount:", error);
           discountResultCard.innerHTML = "<p>❌ Ошибка подключения к API при расчете привилегий.</p>";
-          logActionToServer("Calculate Discount API Error", { request: currentOrderDetails, error: error.toString() });
         } finally {
           discountResultCard.style.display = "block";
           showLoading(false);
@@ -603,7 +554,6 @@
       }
 
       function showCloseOrderOptions() {
-        logActionToServer("Button Clicked: Show Close Order Options");
         if (!lastGetDiscountResponse || lastGetDiscountResponse.Status !== 1) {
           alert("Сначала успешно рассчитайте привилегии.");
           return;
@@ -623,12 +573,6 @@
       }
 
       async function closeOrder() {
-        logActionToServer("Button Clicked: Close Order", { 
-            orderId: currentOrderDetails.OrderId, 
-            bonusWriteOff: currentOrderDetails.BonusWriteOff, 
-            depositWriteOff: currentOrderDetails.DepositWriteOff 
-        });
-
         if (!lastGetDiscountResponse || !currentOrderDetails.OrderId) {
           alert("Нет данных для закрытия заказа. Пожалуйста, рассчитайте привилегии сначала.");
           return;
@@ -653,15 +597,16 @@
 
         const closeOrderPayload = {
           ...currentOrderDetails,
-          OrganizationId: String(authToken), // Убедимся, что токен это строка
-          ClientId: parseInt(currentClientId, 10), // Преобразуем ClientId в целое число
+          OrganizationId: String(authToken),
+          ClientId: parseInt(currentClientId, 10),
           OrderSumWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)),
           BonusWriteOff: bonusWriteOff,
           DepositWriteOff: depositWriteOff,
           Order: [{ 
             ...currentOrderDetails.Order[0],
             PriceWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2))
-          }]
+          }],
+          OrderDate: new Date().toISOString().replace('Z','') + '+03:00'
         };
 
         showLoading(true);
@@ -690,19 +635,15 @@
             `;
             // Refresh client info
             if (currentClientIdentifier) {
-              logActionToServer("Refreshing client info after order close", { clientIdentifier: currentClientIdentifier });
               searchClient(currentClientIdentifier);
             }
             orderSection.style.display = "none"; // Hide order section after successful close
-            logActionToServer("Close Order Success", { request: closeOrderPayload, response: closeOrderData });
           } else {
             discountResultCard.innerHTML = `<p>⚠️ Ошибка закрытия заказа: ${closeOrderData.ErrorMessage || "Неизвестная ошибка"}</p>`;
-            logActionToServer("Close Order Failed", { request: closeOrderPayload, error: closeOrderData.ErrorMessage, response: closeOrderData });
           }
         } catch (error) {
           console.error("Ошибка API CloseOrder:", error);
           discountResultCard.innerHTML = "<p>❌ Ошибка подключения к API при закрытии заказа.</p>";
-          logActionToServer("Close Order API Error", { request: closeOrderPayload, error: error.toString() });
         } finally {
           showLoading(false);
         }
