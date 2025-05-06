@@ -8,6 +8,7 @@
     />
     <title>PH CRM Balance</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
       :root {
         --primary-color: #1e90ff;
@@ -104,56 +105,6 @@
         height: 50px;
       }
 
-      .scanner-container {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: var(--bg-color);
-        z-index: 1000;
-        display: none;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 20px;
-        box-sizing: border-box;
-      }
-
-      .scanner-container.active {
-        display: flex;
-      }
-
-      .close-scanner {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        background: rgba(255, 255, 255, 0.1);
-        border-radius: 50%;
-        padding: 8px;
-        color: white;
-        font-size: 24px;
-        border: none;
-        cursor: pointer;
-        z-index: 1001;
-      }
-
-      #reader {
-        width: 90%;
-        max-width: 400px;
-        min-height: 200px;
-        margin: 20px auto;
-        background-color: #333;
-        border: 1px solid #555;
-        overflow: hidden;
-      }
-
-      #reader video {
-        width: 100% !important;
-        height: auto !important;
-        border-radius: var(--border-radius);
-      }
-
       .order-section {
         margin-top: 20px;
         padding-top: 15px;
@@ -217,11 +168,6 @@
           <div class="result-card" id="discountResultCard" style="display: none; margin-top: 10px;"></div>
         </div>
       </div>
-    </div>
-
-    <div class="scanner-container" id="scannerContainer">
-      <button class="close-scanner" onclick="closeScanner()">✕</button>
-      <div id="reader"></div>
     </div>
 
     <script>
@@ -316,23 +262,39 @@
       }
 
       function toggleQR() {
-        if (Telegram.WebApp.isVersionAtLeast("6.1")) {
-          Telegram.WebApp.showScanQrPopup({
-            text: "Наведите камеру на QR-код",
-            onResult: function(result) {
-              Telegram.WebApp.closeScanQrPopup();
-              if (result && result.trim()) {
-                document.getElementById("searchInput").value = result;
-                searchClient(result);
-              }
-            },
-            onError: function(error) {
-              console.error("Ошибка сканера:", error);
-            }
-          });
-        } else {
-          alert("Ваша версия Telegram слишком старая");
+        const scannerContainer = document.getElementById('scannerContainer');
+        scannerContainer.classList.add('active');
+
+        if (!html5QrcodeScanner) {
+          html5QrcodeScanner = new Html5Qrcode("reader", true);
         }
+
+        const config = {
+          fps: 10,
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+            let qrboxSize = Math.floor(minEdge * 0.8);
+            qrboxSize = Math.max(qrboxSize, 200);
+            qrboxSize = Math.min(qrboxSize, 300);
+            return {
+                width: qrboxSize,
+                height: qrboxSize
+            };
+          },
+          aspectRatio: 1.0,
+          rememberLastUsedCamera: true
+        };
+
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          config,
+          onScanSuccess,
+          onScanFailure
+        ).catch(err => {
+          console.error("Не удалось запустить сканер:", err);
+          alert("Не удалось запустить камеру. Пожалуйста, проверьте разрешения и попробуйте снова. Ошибка: " + err);
+          closeScanner();
+        });
       }
 
       function closeScanner() {
@@ -347,8 +309,8 @@
             scannerContainer.classList.remove('active');
           });
         } else {
-            const scannerContainer = document.getElementById('scannerContainer');
-            scannerContainer.classList.remove('active');
+          const scannerContainer = document.getElementById('scannerContainer');
+          scannerContainer.classList.remove('active');
         }
       }
 
@@ -599,6 +561,7 @@
           ...currentOrderDetails,
           OrganizationId: String(authToken),
           ClientId: parseInt(currentClientId, 10),
+          DepositClientID: parseInt(currentClientId, 10),
           OrderSumWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)),
           BonusWriteOff: bonusWriteOff,
           DepositWriteOff: depositWriteOff,
