@@ -612,26 +612,23 @@
         const orderSumAfterCardDiscount = lastGetDiscountResponse.OrderSumWithCardDiscount || currentOrderDetails.OrderSumWithDiscount;
         const finalOrderSumWithDiscount = orderSumAfterCardDiscount - bonusWriteOff - depositWriteOff;
 
-
         const closeOrderPayload = {
-          ...currentOrderDetails, 
-          OrderSumWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)), // Убедимся что это число с 2 знаками
+          ...currentOrderDetails,
+          OrganizationId: String(authToken), // Убедимся, что токен это строка
+          ClientId: parseInt(currentClientId, 10), // Преобразуем ClientId в целое число
+          OrderSumWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)),
           BonusWriteOff: bonusWriteOff,
           DepositWriteOff: depositWriteOff,
           Order: [{ 
             ...currentOrderDetails.Order[0],
-            PriceWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)) // Обновляем и в заказе
+            PriceWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2))
           }]
         };
-        // The problem statement implies the same body structure as api.txt
-        // Ensure all required fields for CloseOrder are present, potentially adding MaxBonus and MaxDeposit if API needs them directly.
-        // Based on "В прошлом ответе мы должны получить maxBonus и maxDeposit эти данные должны подствиться в BonusWriteOff и DepositeWriteOff"
-        // it seems BonusWriteOff and DepositWriteOff are the primary fields.
 
         showLoading(true);
-        // Выводим тело запроса для отладки
-        const payloadString = JSON.stringify(closeOrderPayload, null, 2);
-        discountResultCard.innerHTML = `<h4>Отправляемый запрос для CloseOrder:</h4><pre style="text-align: left; background-color: #2b2b2b; padding: 10px; border-radius: 5px; white-space: pre-wrap; word-break: break-all;">${payloadString}</pre><p style="margin-top:10px;">Закрытие заказа...</p>`;
+        // Логируем тело запроса в консоль браузера для отладки
+        console.log("Отправляемый запрос для CloseOrder:", JSON.stringify(closeOrderPayload, null, 2));
+        discountResultCard.innerHTML = "Закрытие заказа..."; // Убираем отображение payload на экране
 
         try {
           const response = await fetch(
