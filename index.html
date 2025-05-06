@@ -242,26 +242,40 @@
       }
 
       function toggleQR() {
-        if (Telegram.WebApp.isVersionAtLeast("6.1")) {
-          Telegram.WebApp.showScanQrPopup({
-            text: "Наведите камеру на QR-код",
-            onResult: function(result) {
-              // Закрываем сканер
-              Telegram.WebApp.closeScanQrPopup();
-              
-              // Вставляем данные в поле ввода и запускаем поиск
-              if (result && result.trim()) {
-                document.getElementById('searchInput').value = result;
-                searchClient(result);
-              }
-            },
-            onError: function(error) {
-              console.error("Ошибка сканера:", error);
-            }
-          });
-        } else {
-          alert("Ваша версия Telegram слишком старая");
+        if (!Telegram.WebApp.isVersionAtLeast("6.1")) {
+          alert("Ваша версия Telegram слишком старая для сканирования QR-кодов. Пожалуйста, обновите приложение.");
+          return;
         }
+
+        if (!Telegram.WebApp.isExpanded) {
+          Telegram.WebApp.expand();
+        }
+
+        Telegram.WebApp.showScanQrPopup({
+          text: "Наведите камеру на QR-код клиента",
+          onResult: function (result) {
+            if (!result) {
+              alert("Не удалось распознать QR-код. Попробуйте еще раз.");
+              return;
+            }
+
+            // Закрываем сканер
+            Telegram.WebApp.closeScanQrPopup();
+
+            // Очищаем предыдущие результаты
+            resultCard.innerHTML = "";
+
+            // Вставляем данные в поле ввода и запускаем поиск
+            const searchInput = document.getElementById("searchInput");
+            searchInput.value = result.trim();
+            searchClient(result.trim());
+          },
+          onError: function (error) {
+            console.error("Ошибка сканера:", error);
+            alert("Произошла ошибка при сканировании QR-кода. Пожалуйста, попробуйте еще раз.");
+            Telegram.WebApp.closeScanQrPopup();
+          }
+        });
       }
 
       async function searchClient(input = null) {
