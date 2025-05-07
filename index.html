@@ -52,6 +52,7 @@
 
       .input-group {
         margin-bottom: 16px;
+        position: relative;
       }
 
       input,
@@ -63,6 +64,28 @@
         background-color: var(--card-bg);
         color: var(--text-color);
         font-size: 16px;
+      }
+
+      .search-input-container {
+        position: relative;
+        width: 100%;
+      }
+
+      .qr-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        cursor: pointer;
+        color: var(--primary-color);
+        font-size: 20px;
+        padding: 8px;
+        border-radius: 50%;
+        transition: background-color 0.3s;
+      }
+
+      .qr-icon:hover {
+        background-color: rgba(30, 144, 255, 0.1);
       }
 
       button {
@@ -187,17 +210,15 @@
 
         <!-- Единое поле ввода -->
         <div class="input-group">
-          <input
-            type="text"
-            id="searchInput"
-            placeholder="Введите номер карты или телефона"
-          />
+          <div class="search-input-container">
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Введите номер карты или телефона"
+            />
+            <span class="qr-icon" onclick="toggleQR()">📷</span>
+          </div>
         </div>
-
-        <!-- Кнопка сканирования QR -->
-        <button class="qr-button" onclick="toggleQR()">
-          📷 Сканировать QR
-        </button>
 
         <!-- Кнопка поиска -->
         <button onclick="searchClient()">🔍 Поиск</button>
