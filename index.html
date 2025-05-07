@@ -9,6 +9,7 @@
     <title>PH CRM Balance</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://code.iconify.design/3/3.1.0/iconify.min.js"></script>
     <style>
       :root {
         --primary-color: #1e90ff;
@@ -78,10 +79,13 @@
         transform: translateY(-50%);
         cursor: pointer;
         color: var(--primary-color);
-        font-size: 20px;
+        font-size: 24px;
         padding: 8px;
         border-radius: 50%;
         transition: background-color 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
 
       .qr-icon:hover {
@@ -216,7 +220,9 @@
               id="searchInput"
               placeholder="Введите номер карты или телефона"
             />
-            <span class="qr-icon" onclick="toggleQR()">📷</span>
+            <span class="qr-icon" onclick="toggleQR()">
+              <span class="iconify" data-icon="f7:qrcode-viewfinder"></span>
+            </span>
           </div>
         </div>
 
