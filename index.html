@@ -608,13 +608,16 @@
             return;
         }
         
+        // Получаем московское время
+        const moscowTime = getMoscowDateTime();
+        
         const closeOrderPayload = {
           // Важно использовать те же значения, что и в GetDiscount
           OrganizationId: String(authToken),
           ParentOrderId: currentOrderDetails.ParentOrderId,
           OrderId: currentOrderDetails.OrderId,
           OrderNumber: currentOrderDetails.OrderNumber,
-          OrderDate: new Date().toISOString().slice(0, 19).replace('T', ' '), // Format: "YYYY-MM-DD HH:MM:SS"
+          OrderDate: getMoscowDateTime().apiFormat, // Московское время в формате "YYYY-MM-DD HH:MM:SS"
           OrderSum: currentOrderDetails.OrderSum, // Сохраняем исходную сумму заказа
           OrderSumWithDiscount: currentOrderDetails.OrderSumWithDiscount, // Сохраняем исходную сумму "со скидкой" (без изменений)
           ClientId: parseInt(currentClientId, 10),
@@ -713,11 +716,37 @@
         });
       }
 
+      // Функция для получения текущего времени в московском часовом поясе (UTC+3)
+      function getMoscowDateTime() {
+        const now = new Date();
+        
+        // Создаем дату в московском времени (UTC+3)
+        const moscowTime = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+        
+        // Форматируем дату и время в строку YYYY-MM-DD HH:MM:SS для API
+        const year = moscowTime.getUTCFullYear();
+        const month = String(moscowTime.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(moscowTime.getUTCDate()).padStart(2, '0');
+        const hours = String(moscowTime.getUTCHours()).padStart(2, '0');
+        const minutes = String(moscowTime.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(moscowTime.getUTCSeconds()).padStart(2, '0');
+        
+        // Формат для API
+        const apiDateTimeFormat = `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        
+        return {
+          apiFormat: apiDateTimeFormat,
+          dateStr: `${day}.${month}.${year}`,
+          timeStr: `${hours}:${minutes}:${seconds}`
+        };
+      }
+
       // Функция для генерации текстового чека
       function generateReceipt(orderData, discountResponse, bonusWriteOff, depositWriteOff, finalSum) {
-        const now = new Date();
-        const dateStr = now.toLocaleDateString('ru-RU');
-        const timeStr = now.toLocaleTimeString('ru-RU');
+        // Получаем московское время
+        const moscowTime = getMoscowDateTime();
+        const dateStr = moscowTime.dateStr;
+        const timeStr = moscowTime.timeStr;
         
         const apiDiscount = parseFloat(discountResponse.SumDiscount || 0);
         const loyaltyLevel = discountResponse.LoyaltyLevel || "Не указан";
@@ -758,15 +787,32 @@
 
       // Функция для отправки чека в Telegram бота
       function sendReceiptToBot(receiptText) {
-        // Используем Telegram WebApp для отправки данных обратно в бота
-        if (window.Telegram && window.Telegram.WebApp) {
-          Telegram.WebApp.sendData(JSON.stringify({
-            action: 'receipt',
-            text: receiptText
-          }));
-          return true;
+        try {
+          console.log("Отправка чека в бота...");
+          
+          // Проверяем доступность API Telegram
+          if (window.Telegram && window.Telegram.WebApp) {
+            // Подготавливаем данные
+            const payload = JSON.stringify({
+              action: 'receipt',
+              text: receiptText
+            });
+            
+            console.log("Данные для отправки:", payload);
+            
+            // Важно: закрываем WebApp после отправки данных
+            Telegram.WebApp.sendData(payload);
+            
+            console.log("Чек отправлен");
+            return true;
+          } else {
+            console.error("Telegram WebApp API недоступен");
+            return false;
+          }
+        } catch (error) {
+          console.error("Ошибка при отправке чека:", error);
+          return false;
         }
-        return false;
       }
 
       // Добавляем новые функции для работы с чеком и сбросом приложения
@@ -796,10 +842,12 @@
 
       function sendReceipt(encodedReceiptText) {
         const receiptText = decodeURIComponent(encodedReceiptText);
+        console.log("Подготовка к отправке чека...");
         const success = sendReceiptToBot(receiptText);
         
         if (success) {
-          alert("Чек отправлен в бота!");
+          // Не показываем alert, так как после sendData WebApp закроется
+          console.log("Команда на отправку чека выполнена успешно");
         } else {
           alert("Не удалось отправить чек. Возможно, вы не используете Telegram WebApp.");
           // Показываем чек для возможности копирования
