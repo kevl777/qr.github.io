@@ -836,8 +836,60 @@
         discountResultCard.innerHTML = `
           <h4>Чек заказа</h4>
           <pre style="background-color: #f5f5f5; color: #333; padding: 15px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap;">${receiptText}</pre>
+          <button onclick="copyReceiptToClipboard('${encodeURIComponent(receiptText)}')">Копировать в буфер</button>
+          <button onclick="downloadReceipt('${encodeURIComponent(receiptText)}')">Скачать как файл</button>
           <button onclick="resetApp()">Продолжить</button>
         `;
+      }
+
+      // Функция для копирования чека в буфер обмена
+      function copyReceiptToClipboard(encodedReceiptText) {
+        const receiptText = decodeURIComponent(encodedReceiptText);
+        
+        try {
+          // Создаем временный элемент для копирования текста
+          const tempElement = document.createElement('textarea');
+          tempElement.value = receiptText;
+          document.body.appendChild(tempElement);
+          tempElement.select();
+          document.execCommand('copy');
+          document.body.removeChild(tempElement);
+          
+          // Уведомляем пользователя
+          alert('Чек скопирован в буфер обмена!');
+        } catch (error) {
+          console.error('Ошибка при копировании чека:', error);
+          alert('Не удалось скопировать чек. Попробуйте вручную выделить и скопировать текст.');
+        }
+      }
+      
+      // Функция для скачивания чека как текстового файла
+      function downloadReceipt(encodedReceiptText) {
+        const receiptText = decodeURIComponent(encodedReceiptText);
+        const now = new Date();
+        const fileName = `чек_${now.getDate()}-${now.getMonth()+1}-${now.getFullYear()}_${now.getHours()}-${now.getMinutes()}.txt`;
+        
+        try {
+          // Создаем объект Blob и ссылку на скачивание
+          const blob = new Blob([receiptText], { type: 'text/plain;charset=utf-8' });
+          const url = URL.createObjectURL(blob);
+          
+          // Создаем временную ссылку для скачивания
+          const downloadLink = document.createElement('a');
+          downloadLink.href = url;
+          downloadLink.download = fileName;
+          
+          // Добавляем ссылку, эмулируем клик и удаляем
+          document.body.appendChild(downloadLink);
+          downloadLink.click();
+          setTimeout(() => {
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(url);
+          }, 100);
+        } catch (error) {
+          console.error('Ошибка при скачивании чека:', error);
+          alert('Не удалось скачать чек. Попробуйте скопировать текст вручную.');
+        }
       }
 
       function sendReceipt(encodedReceiptText) {
