@@ -481,7 +481,6 @@
         }
 
         const orderSumInput = document.getElementById("orderSum");
-
         const orderSum = parseFloat(orderSumInput.value);
 
         if (isNaN(orderSum) || orderSum <= 0) {
@@ -496,6 +495,9 @@
         // Используем полную сумму заказа без предварительной скидки
         const priceWithDiscount = orderSum;
 
+        // Создаем объект заказа для отправки в API
+        // Важно: OrderSumWithDiscount и PriceWithDiscount должны быть равны OrderSum и Price соответственно,
+        // так как скидка будет применена на стороне API
         currentOrderDetails = {
           OrganizationId: authToken,
           ClientId: currentClientId,
@@ -539,14 +541,15 @@
             const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
             
             // Рассчитываем итоговую сумму после скидки API
-            const displaySumAfterCardDiscount = orderSum - apiDiscount;
+            const sumAfterDiscount = orderSum - apiDiscount;
 
             discountResultCard.innerHTML = `
               <h4>Результат расчета привилегий:</h4>
-              <p>Скидка по карте: ${apiDiscount.toFixed(2)} руб.</p>
+              <p>Скидка по уровню привилегий: ${apiDiscount.toFixed(2)} руб.</p>
               <p>Макс. списание бонусов: ${lastGetDiscountResponse.MaxBonus || 0}</p>
               <p>Макс. списание депозита: ${lastGetDiscountResponse.MaxDeposit || 0}</p>
-              <p>Итого к оплате (с учетом скидки по карте): ${displaySumAfterCardDiscount.toFixed(2)} руб.</p>
+              <p>Промежуточная сумма (с учетом скидки): ${sumAfterDiscount.toFixed(2)} руб.</p>
+              <p><i>* Итоговая сумма будет рассчитана с учетом списания бонусов и депозита</i></p>
               <p>Сообщение от API: ${lastGetDiscountResponse.Message || "Нет"}</p>
               <button onclick="showCloseOrderOptions()">Перейти к закрытию заказа</button>
             `;
@@ -604,36 +607,21 @@
             return;
         }
         
-        // Получаем скидку по карте из API
-        const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
-        
-        // Рассчитываем сумму с учетом скидки API
-        const orderSumAfterApiDiscount = currentOrderDetails.OrderSum - apiDiscount;
-        
-        // Итоговая сумма с учетом всех скидок, бонусов и депозита
-        const finalOrderSumWithDiscount = orderSumAfterApiDiscount - bonusWriteOff - depositWriteOff;
-        
-        // Получаем точное PriceWithDiscount из ответа GetDiscount
-        let exactPriceWithDiscount = null;
-        if (lastGetDiscountResponse.Order && lastGetDiscountResponse.Order.length > 0) {
-          exactPriceWithDiscount = lastGetDiscountResponse.Order[0].PriceWithDiscount;
-          console.log("Using GetDiscount.PriceWithDiscount:", exactPriceWithDiscount);
-        }
-
         const closeOrderPayload = {
-          ...currentOrderDetails,
+          // Важно использовать те же значения, что и в GetDiscount
           OrganizationId: String(authToken),
+          ParentOrderId: currentOrderDetails.ParentOrderId,
+          OrderId: currentOrderDetails.OrderId,
+          OrderNumber: currentOrderDetails.OrderNumber,
+          OrderDate: new Date().toISOString().slice(0, 19).replace('T', ' '), // Format: "YYYY-MM-DD HH:MM:SS"
+          OrderSum: currentOrderDetails.OrderSum, // Сохраняем исходную сумму заказа
+          OrderSumWithDiscount: currentOrderDetails.OrderSumWithDiscount, // Сохраняем исходную сумму "со скидкой" (без изменений)
           ClientId: parseInt(currentClientId, 10),
           DepositClientId: parseInt(currentClientId, 10),
-          OrderSumWithDiscount: parseFloat(finalOrderSumWithDiscount.toFixed(2)),
           BonusWriteOff: bonusWriteOff,
           DepositWriteOff: depositWriteOff,
-          Order: [{ 
-            ...currentOrderDetails.Order[0],
-            // Используем ТОЧНО то же значение PriceWithDiscount, что вернул GetDiscount
-            PriceWithDiscount: exactPriceWithDiscount !== null ? exactPriceWithDiscount : parseFloat(finalOrderSumWithDiscount.toFixed(2))
-          }],
-          OrderDate: new Date().toISOString().slice(0, 19).replace('T', ' ') // Format: "YYYY-MM-DD HH:MM:SS"
+          // Используем точно тот же массив заказа, что и в GetDiscount
+          Order: JSON.parse(JSON.stringify(currentOrderDetails.Order))
         };
         
         // Удаляем лишнее поле, которое мы добавили для внутреннего использования
@@ -658,12 +646,16 @@
           const closeOrderData = await response.json();
 
           if (response.status === 200 && closeOrderData.Status === 1) {
+            // Рассчитываем правильную итоговую сумму для отображения
+            const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
+            const finalDisplaySum = currentOrderDetails.OrderSum - apiDiscount - bonusWriteOff - depositWriteOff;
+            
             discountResultCard.innerHTML = `
               <h4>Заказ успешно закрыт!</h4>
               <p>Сообщение: ${closeOrderData.Message || "Успешно"}</p>
               <p>Списано бонусов: ${bonusWriteOff}</p>
               <p>Списано с депозита: ${depositWriteOff}</p>
-              <p>Итоговая сумма к оплате: ${finalOrderSumWithDiscount}</p>
+              <p>Итоговая сумма к оплате: ${finalDisplaySum.toFixed(2)} руб.</p>
             `;
             // Refresh client info
             if (currentClientIdentifier) {
