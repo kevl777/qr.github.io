@@ -650,12 +650,31 @@
             const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
             const finalDisplaySum = currentOrderDetails.OrderSum - apiDiscount - bonusWriteOff - depositWriteOff;
             
+            // Генерируем чек
+            const receiptText = generateReceipt(
+              currentOrderDetails,
+              lastGetDiscountResponse,
+              bonusWriteOff,
+              depositWriteOff,
+              finalDisplaySum
+            );
+            
+            // Форматируем номер заказа для отображения
+            const formattedOrderNumber = typeof currentOrderDetails.OrderNumber === 'number' 
+              ? '#' + currentOrderDetails.OrderNumber.toString().padStart(6, '0')
+              : '#' + currentOrderDetails.OrderNumber;
+            
             discountResultCard.innerHTML = `
-              <h4>Заказ успешно закрыт!</h4>
+              <h4>Заказ ${formattedOrderNumber} успешно закрыт!</h4>
               <p>Сообщение: ${closeOrderData.Message || "Успешно"}</p>
               <p>Списано бонусов: ${bonusWriteOff}</p>
               <p>Списано с депозита: ${depositWriteOff}</p>
               <p>Итоговая сумма к оплате: ${finalDisplaySum.toFixed(2)} руб.</p>
+              <div style="margin-top: 15px;">
+                <button onclick="resetApp()">Продолжить</button>
+                <button onclick="showReceipt('${encodeURIComponent(receiptText)}')" style="margin-top: 10px; background-color: #34A853;">Показать чек</button>
+                <button onclick="sendReceipt('${encodeURIComponent(receiptText)}')" style="margin-top: 10px; background-color: #4285F4;">Отправить чек в бота</button>
+              </div>
             `;
             // Refresh client info
             if (currentClientIdentifier) {
@@ -686,6 +705,100 @@
             }
           }
         });
+      }
+
+      // Функция для генерации текстового чека
+      function generateReceipt(orderData, discountResponse, bonusWriteOff, depositWriteOff, finalSum) {
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('ru-RU');
+        const timeStr = now.toLocaleTimeString('ru-RU');
+        
+        const apiDiscount = parseFloat(discountResponse.SumDiscount || 0);
+        const loyaltyLevel = discountResponse.LoyaltyLevel || "Не указан";
+        
+        // Форматируем номер заказа для лучшей читаемости
+        const orderNumber = typeof orderData.OrderNumber === 'number' 
+          ? '#' + orderData.OrderNumber.toString().padStart(6, '0')
+          : '#' + orderData.OrderNumber;
+        
+        let receiptText = `
+===== ЧЕК ЗАКАЗА =====
+Дата: ${dateStr}
+Время: ${timeStr}
+Номер заказа: ${orderNumber}
+------------------------
+Сумма заказа: ${orderData.OrderSum.toFixed(2)} ₽
+`;
+
+        if (apiDiscount > 0) {
+          receiptText += `Скидка по уровню (${loyaltyLevel}): ${apiDiscount.toFixed(2)} ₽\n`;
+        }
+        
+        if (bonusWriteOff > 0) {
+          receiptText += `Списано бонусов: ${bonusWriteOff.toFixed(2)} ₽\n`;
+        }
+        
+        if (depositWriteOff > 0) {
+          receiptText += `Списано с депозита: ${depositWriteOff.toFixed(2)} ₽\n`;
+        }
+        
+        receiptText += `------------------------
+ИТОГО К ОПЛАТЕ: ${finalSum.toFixed(2)} ₽
+========================
+`;
+
+        return receiptText;
+      }
+
+      // Функция для отправки чека в Telegram бота
+      function sendReceiptToBot(receiptText) {
+        // Используем Telegram WebApp для отправки данных обратно в бота
+        if (window.Telegram && window.Telegram.WebApp) {
+          Telegram.WebApp.sendData(JSON.stringify({
+            action: 'receipt',
+            text: receiptText
+          }));
+          return true;
+        }
+        return false;
+      }
+
+      // Добавляем новые функции для работы с чеком и сбросом приложения
+      function resetApp() {
+        // Сбрасываем приложение к начальному состоянию для нового заказа
+        currentClientId = null;
+        currentClientIdentifier = null;
+        lastGetDiscountResponse = null;
+        currentOrderDetails = {};
+        
+        // Очищаем элементы UI
+        resultCard.innerHTML = "";
+        discountResultCard.innerHTML = "";
+        orderSection.style.display = "none";
+        document.getElementById("searchInput").value = "";
+      }
+
+      function showReceipt(encodedReceiptText) {
+        const receiptText = decodeURIComponent(encodedReceiptText);
+        // Отображаем чек в красивом формате
+        discountResultCard.innerHTML = `
+          <h4>Чек заказа</h4>
+          <pre style="background-color: #f5f5f5; color: #333; padding: 15px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap;">${receiptText}</pre>
+          <button onclick="resetApp()">Продолжить</button>
+        `;
+      }
+
+      function sendReceipt(encodedReceiptText) {
+        const receiptText = decodeURIComponent(encodedReceiptText);
+        const success = sendReceiptToBot(receiptText);
+        
+        if (success) {
+          alert("Чек отправлен в бота!");
+        } else {
+          alert("Не удалось отправить чек. Возможно, вы не используете Telegram WebApp.");
+          // Показываем чек для возможности копирования
+          showReceipt(encodedReceiptText);
+        }
       }
     </script>
   </body>
