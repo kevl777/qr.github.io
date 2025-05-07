@@ -1,4 +1,4 @@
-!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
@@ -210,10 +210,6 @@
             <label for="orderSum">Сумма заказа:</label>
             <input type="number" id="orderSum" placeholder="Введите сумму" />
           </div>
-          <div class="input-group" id="discountField">
-            <label for="discountPercentage">Процент скидки (%):</label>
-            <input type="number" id="discountPercentage" placeholder="0" value="0" />
-          </div>
           <button onclick="calculateDiscount()">Рассчитать привилегии</button>
           <div class="result-card" id="discountResultCard" style="display: none; margin-top: 10px;"></div>
         </div>
@@ -232,8 +228,6 @@
       // Получение токена из URL
       const urlParams = new URLSearchParams(window.location.search);
       let authToken = urlParams.get("token");
-      // Получение настройки отображения скидки из URL
-      const showDiscount = urlParams.get("showDiscount") === "1";
       let isRegistered = false;
 
       const authSection = document.getElementById("authSection");
@@ -469,13 +463,6 @@
         orderSection.style.display = "block";
         document.getElementById("orderSum").value = "";
         
-        // Показываем/скрываем поле скидки в зависимости от настроек пользователя
-        const discountField = document.getElementById("discountField");
-        if (discountField) {
-          discountField.style.display = showDiscount ? "block" : "none";
-          document.getElementById("discountPercentage").value = "0";
-        }
-        
         discountResultCard.innerHTML = "";
         discountResultCard.style.display = "none";
       }
@@ -494,18 +481,11 @@
         }
 
         const orderSumInput = document.getElementById("orderSum");
-        const discountPercentageInput = document.getElementById("discountPercentage");
 
         const orderSum = parseFloat(orderSumInput.value);
-        // Если showDiscount выключено, всегда используем 0% скидки
-        const discountPercentage = showDiscount ? (parseFloat(discountPercentageInput.value) || 0) : 0;
 
         if (isNaN(orderSum) || orderSum <= 0) {
           alert("Введите корректную сумму заказа.");
-          return;
-        }
-        if (isNaN(discountPercentage) || discountPercentage < 0 || discountPercentage > 100) {
-          alert("Введите корректный процент скидки (0-100).");
           return;
         }
 
@@ -513,7 +493,8 @@
         discountResultCard.innerHTML = "";
         discountResultCard.style.display = "none";
 
-        const priceWithDiscount = orderSum * (1 - discountPercentage / 100);
+        // Используем полную сумму заказа без предварительной скидки
+        const priceWithDiscount = orderSum;
 
         currentOrderDetails = {
           OrganizationId: authToken,
@@ -536,7 +517,6 @@
         // For CloseOrder, ParentOrderId and OrderId might need to be consistent with GetDiscount
         currentOrderDetails.ParentOrderId = currentOrderDetails.OrderId;
 
-
         try {
           const response = await fetch(
             `https://loyalty-api.p-h.app/api/v3/GetDiscount/${authToken}`,
@@ -555,16 +535,15 @@
             // Сохраняем оригинальный API ответ для дальнейшего использования
             currentOrderDetails.getDiscountResponse = lastGetDiscountResponse;
             
-            // Сумма после применения введенного процента скидки (локальный расчет)
-            const sumAfterUserPercentageDiscount = currentOrderDetails.OrderSumWithDiscount;
-            // Используем OrderSumWithCardDiscount от API, если есть, иначе локально рассчитанную сумму
-            const displaySumAfterCardDiscount = (lastGetDiscountResponse.OrderSumWithCardDiscount !== undefined && lastGetDiscountResponse.OrderSumWithCardDiscount !== null) 
-                                                ? lastGetDiscountResponse.OrderSumWithCardDiscount 
-                                                : sumAfterUserPercentageDiscount;
+            // Получаем скидку от API (если есть)
+            const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
+            
+            // Рассчитываем итоговую сумму после скидки API
+            const displaySumAfterCardDiscount = orderSum - apiDiscount;
 
             discountResultCard.innerHTML = `
               <h4>Результат расчета привилегий:</h4>
-              <p>Скидка по карте (от API): ${lastGetDiscountResponse.CardDiscountSum || 0} руб.</p>
+              <p>Скидка по карте: ${apiDiscount.toFixed(2)} руб.</p>
               <p>Макс. списание бонусов: ${lastGetDiscountResponse.MaxBonus || 0}</p>
               <p>Макс. списание депозита: ${lastGetDiscountResponse.MaxDeposit || 0}</p>
               <p>Итого к оплате (с учетом скидки по карте): ${displaySumAfterCardDiscount.toFixed(2)} руб.</p>
@@ -575,7 +554,9 @@
             // We need to update OrderSumWithDiscount for the CloseOrder call if bonuses/deposits are applied.
             // This will be handled in showCloseOrderOptions or closeOrder function.
           } else {
-            discountResultCard.innerHTML = `<p>⚠️ Ошибка расчета привилегий: ${lastGetDiscountResponse.ErrorMessage || "Неизвестная ошибка"}</p>`;
+            discountResultCard.innerHTML = `<p>⚠️ ${
+              lastGetDiscountResponse.ErrorMessage || "Ошибка расчета привилегий"
+            }</p>`;
           }
         } catch (error) {
           console.error("Ошибка API GetDiscount:", error);
@@ -623,10 +604,14 @@
             return;
         }
         
-        // Final OrderSumWithDiscount is after card discount, bonus, and deposit write-offs.
-        // OrderSumWithCardDiscount is from GetDiscount response.
-        const orderSumAfterCardDiscount = lastGetDiscountResponse.OrderSumWithCardDiscount || currentOrderDetails.OrderSumWithDiscount;
-        const finalOrderSumWithDiscount = orderSumAfterCardDiscount - bonusWriteOff - depositWriteOff;
+        // Получаем скидку по карте из API
+        const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
+        
+        // Рассчитываем сумму с учетом скидки API
+        const orderSumAfterApiDiscount = currentOrderDetails.OrderSum - apiDiscount;
+        
+        // Итоговая сумма с учетом всех скидок, бонусов и депозита
+        const finalOrderSumWithDiscount = orderSumAfterApiDiscount - bonusWriteOff - depositWriteOff;
         
         // Получаем точное PriceWithDiscount из ответа GetDiscount
         let exactPriceWithDiscount = null;
