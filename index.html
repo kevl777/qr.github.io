@@ -211,8 +211,9 @@
             <input type="number" id="orderSum" placeholder="Введите сумму" />
           </div>
           <button onclick="calculateDiscount()">Рассчитать привилегии</button>
-          <div class="result-card" id="discountResultCard" style="display: none; margin-top: 10px;"></div>
         </div>
+        <!-- Вынесли discountResultCard за пределы orderSection для независимой видимости -->
+        <div class="result-card" id="discountResultCard" style="display: none; margin-top: 10px;"></div>
       </div>
     </div>
 
@@ -650,6 +651,11 @@
             const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
             const finalDisplaySum = currentOrderDetails.OrderSum - apiDiscount - bonusWriteOff - depositWriteOff;
             
+            // Форматируем номер заказа для отображения
+            const formattedOrderNumber = typeof currentOrderDetails.OrderNumber === 'number' 
+              ? '#' + currentOrderDetails.OrderNumber.toString().padStart(6, '0')
+              : '#' + currentOrderDetails.OrderNumber;
+            
             // Генерируем чек
             const receiptText = generateReceipt(
               currentOrderDetails,
@@ -658,11 +664,6 @@
               depositWriteOff,
               finalDisplaySum
             );
-            
-            // Форматируем номер заказа для отображения
-            const formattedOrderNumber = typeof currentOrderDetails.OrderNumber === 'number' 
-              ? '#' + currentOrderDetails.OrderNumber.toString().padStart(6, '0')
-              : '#' + currentOrderDetails.OrderNumber;
             
             discountResultCard.innerHTML = `
               <h4>Заказ ${formattedOrderNumber} успешно закрыт!</h4>
@@ -676,11 +677,16 @@
                 <button onclick="sendReceipt('${encodeURIComponent(receiptText)}')" style="margin-top: 10px; background-color: #4285F4;">Отправить чек в бота</button>
               </div>
             `;
-            // Refresh client info
-            if (currentClientIdentifier) {
-              searchClient(currentClientIdentifier);
-            }
-            orderSection.style.display = "none"; // Hide order section after successful close
+            // Скрываем только section с формой заказа, оставляя результат видимым
+            orderSection.style.display = "none";
+            
+            // Явно убеждаемся, что результат виден
+            discountResultCard.style.display = "block";
+            mainSection.style.display = "block";
+            resultCard.style.display = "block";
+            
+            // Прокручиваем к результату
+            discountResultCard.scrollIntoView({ behavior: 'smooth' });
           } else {
             discountResultCard.innerHTML = `<p>⚠️ Ошибка закрытия заказа: ${closeOrderData.ErrorMessage || "Неизвестная ошибка"}</p>`;
           }
