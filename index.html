@@ -118,6 +118,7 @@
         border-radius: var(--border-radius);
         padding: 16px;
         margin-top: 20px;
+        display: none;
       }
 
       .result-card p {
@@ -199,6 +200,74 @@
         display: block;
         margin-bottom: 5px;
         font-size: 14px;
+      }
+
+      /* Стили для тумблеров */
+      .toggle-container {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+        gap: 10px;
+      }
+
+      .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+      }
+
+      .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+      }
+
+      .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+      }
+
+      input:checked + .toggle-slider {
+        background-color: var(--primary-color);
+      }
+
+      input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+      }
+
+      .toggle-label {
+        font-size: 14px;
+        color: var(--text-color);
+      }
+
+      .amount-input {
+        display: none;
+        margin-top: 10px;
+        margin-bottom: 15px;
+      }
+
+      .amount-input.visible {
+        display: block;
       }
     </style>
   </head>
@@ -482,6 +551,7 @@
         currentClientIdentifier = query;
         showLoading(true);
         resultCard.innerHTML = "";
+        resultCard.style.display = "none";
         orderSection.style.display = "none";
         discountResultCard.style.display = "none";
 
@@ -523,8 +593,8 @@
               found_by: data.CardNumber ? 'card' : 'phone'
             });
             resultCard.innerHTML = `
-            <h3>👤 Клиент найден</h3>
-            <p>ФИО: ${data.LastName || ""} ${data.FirstName || ""} ${data.MiddleName || ""}</p>
+            <h3>Гость найден</h3>
+            <p>👤 ФИО: ${data.LastName || ""} ${data.FirstName || ""} ${data.MiddleName || ""}</p>
             <p>📞 Телефон: ${data.Phone || ""}</p>
             <p>💳 Номер карты: ${data.CardNumber || ""}</p>
             <p>- - - - - - - - - - - - - - - - - - - - - - - -</p>
@@ -534,11 +604,13 @@
             <p>🔆 Уровень: ${data.LoyaltyLevel || "Без уровня"}</p>
             <button onclick="showCreateOrderForm()">Создать заказ</button>
           `;
+            resultCard.style.display = "block";
           } else {
             currentClientId = null;
             // НЕ ждем отправки лога
             sendLog('search_client_error', { error: data.ErrorMessage });
-            resultCard.innerHTML = `<p>⚠️ ${data.ErrorMessage || "Клиент не найден"}</p>`;
+            resultCard.innerHTML = `<p>⚠️ ${data.ErrorMessage || "Гость не найден"}</p>`;
+            resultCard.style.display = "block";
           }
         } catch (error) {
           currentClientId = null;
@@ -546,6 +618,7 @@
           // НЕ ждем отправки лога
           sendLog('search_client_error', { error: error.message });
           resultCard.innerHTML = "<p>❌ Ошибка подключения к API.</p>";
+          resultCard.style.display = "block";
         } finally {
           showLoading(false);
         }
@@ -553,7 +626,7 @@
 
       function showCreateOrderForm() {
         if (!currentClientId) {
-          alert("Сначала найдите клиента!");
+          alert("Сначала найдите гостя!");
           return;
         }
         orderSection.style.display = "block";
@@ -572,7 +645,7 @@
 
       async function calculateDiscount() {
         if (!currentClientId) {
-          alert("Клиент не выбран.");
+          alert("Гость не выбран.");
           return;
         }
 
@@ -676,10 +749,17 @@
           alert("Сначала успешно рассчитайте заказ.");
           return;
         }
-        // Add input fields for bonus and deposit write-off, pre-filled with max values
+
         discountResultCard.innerHTML += `
-          <div class="input-group" style="margin-top: 15px;">
-            <label for="bonusWriteOff">Списать бонусов (макс: ${lastGetDiscountResponse.MaxBonus || 0}):</label>
+          <div class="toggle-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="bonusToggle" onchange="toggleAmountInput('bonus')">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Списать бонусы</span>
+          </div>
+          <div id="bonusAmountInput" class="amount-input">
+            <label for="bonusWriteOff">Сумма бонусов (макс: ${lastGetDiscountResponse.MaxBonus || 0}):</label>
             <input 
               type="number" 
               id="bonusWriteOff" 
@@ -693,8 +773,16 @@
               onclick="this.value=''"
             />
           </div>
-          <div class="input-group">
-            <label for="depositWriteOff">Списать с депозита (макс: ${lastGetDiscountResponse.MaxDeposit || 0}):</label>
+
+          <div class="toggle-container">
+            <label class="toggle-switch">
+              <input type="checkbox" id="depositToggle" onchange="toggleAmountInput('deposit')">
+              <span class="toggle-slider"></span>
+            </label>
+            <span class="toggle-label">Списать депозит</span>
+          </div>
+          <div id="depositAmountInput" class="amount-input">
+            <label for="depositWriteOff">Сумма депозита (макс: ${lastGetDiscountResponse.MaxDeposit || 0}):</label>
             <input 
               type="number" 
               id="depositWriteOff" 
@@ -712,20 +800,36 @@
         `;
       }
 
+      function toggleAmountInput(type) {
+        const inputContainer = document.getElementById(`${type}AmountInput`);
+        const toggle = document.getElementById(`${type}Toggle`);
+        const input = document.getElementById(`${type}WriteOff`);
+        
+        if (toggle.checked) {
+          inputContainer.classList.add('visible');
+          input.value = lastGetDiscountResponse[`Max${type.charAt(0).toUpperCase() + type.slice(1)}`] || 0;
+        } else {
+          inputContainer.classList.remove('visible');
+          input.value = 0;
+        }
+      }
+
       async function closeOrder() {
         if (!lastGetDiscountResponse || !currentOrderDetails.OrderId) {
           alert("Нет данных для закрытия заказа. Пожалуйста, рассчитайте заказ сначала.");
           return;
         }
 
-        const bonusWriteOff = parseFloat(document.getElementById("bonusWriteOff").value) || 0;
-        const depositWriteOff = parseFloat(document.getElementById("depositWriteOff").value) || 0;
+        const bonusToggle = document.getElementById("bonusToggle");
+        const depositToggle = document.getElementById("depositToggle");
+        const bonusWriteOff = bonusToggle.checked ? parseFloat(document.getElementById("bonusWriteOff").value) || 0 : 0;
+        const depositWriteOff = depositToggle.checked ? parseFloat(document.getElementById("depositWriteOff").value) || 0 : 0;
 
-        if (bonusWriteOff < 0 || bonusWriteOff > (lastGetDiscountResponse.MaxBonus || 0)) {
+        if (bonusToggle.checked && (bonusWriteOff < 0 || bonusWriteOff > (lastGetDiscountResponse.MaxBonus || 0))) {
             alert(`Некорректная сумма списания бонусов. Доступно: ${lastGetDiscountResponse.MaxBonus || 0}`);
             return;
         }
-        if (depositWriteOff < 0 || depositWriteOff > (lastGetDiscountResponse.MaxDeposit || 0)) {
+        if (depositToggle.checked && (depositWriteOff < 0 || depositWriteOff > (lastGetDiscountResponse.MaxDeposit || 0))) {
             alert(`Некорректная сумма списания с депозита. Доступно: ${lastGetDiscountResponse.MaxDeposit || 0}`);
             return;
         }
