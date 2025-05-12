@@ -720,6 +720,12 @@
           return;
         }
 
+        // Скрываем блок scroll-space
+        const scrollSpace = document.querySelector('.scroll-space');
+        if (scrollSpace) {
+          scrollSpace.style.display = 'none';
+        }
+
         showLoading(true);
         discountResultCard.innerHTML = "";
         discountResultCard.style.display = "none";
