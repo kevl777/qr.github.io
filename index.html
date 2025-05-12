@@ -385,7 +385,7 @@
               onblur="handleInputBlur()"
             />
           </div>
-          <button onclick="calculateDiscount()">🔍 Рассчитать заказ</button>
+          <button onclick="calculateDiscount()">Рассчитать заказ</button>
           <!-- Добавляем невидимое пространство для скролла -->
           <div class="scroll-space"></div>
         </div>
@@ -856,6 +856,12 @@
               </div>
             `;
             discountResultCard.style.display = "block";
+            
+            // Скрываем scroll-space блок
+            const scrollSpace = document.querySelector('.scroll-space');
+            if (scrollSpace) {
+              scrollSpace.style.display = 'none';
+            }
             
             // Добавляем автоматическую прокрутку к результатам расчета
             setTimeout(() => {
