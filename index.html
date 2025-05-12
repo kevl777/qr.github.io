@@ -190,6 +190,7 @@
         margin-top: 20px;
         padding-top: 15px;
         border-top: 1px solid #333;
+        position: relative;
       }
 
       .order-section .input-group {
@@ -204,15 +205,11 @@
 
       /* Стили для дополнительного пространства */
       .scroll-space {
-        height: 25vh; /* 1/4 высоты экрана */
-        background-color: var(--bg-color);
-        margin-top: 20px;
-        transition: height 0.3s ease;
-      }
-
-      .scroll-space.hidden {
-        height: 0;
-        margin: 0;
+        height: 300px; /* Фиксированная высота */
+        opacity: 0;
+        pointer-events: none;
+        position: relative;
+        z-index: -1;
       }
 
       /* Стили для разделительной линии */
@@ -374,10 +371,10 @@
               onblur="handleInputBlur()"
             />
           </div>
-          <button onclick="calculateDiscount()">Рассчитать заказ</button>
+          <button onclick="calculateDiscount()">🔍 Рассчитать заказ</button>
+          <!-- Добавляем невидимое пространство для скролла -->
+          <div class="scroll-space"></div>
         </div>
-        <!-- Добавляем пустое пространство для скролла -->
-        <div class="scroll-space"></div>
         <!-- Вынесли discountResultCard за пределы orderSection для независимой видимости -->
         <div class="result-card" id="discountResultCard" style="display: none; margin-top: 10px;"></div>
       </div>
