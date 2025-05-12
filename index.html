@@ -308,14 +308,24 @@
             details: details
           };
 
+          console.log('Sending log:', logData); // Отладочный вывод
+
           // Отправляем лог на сервер
-          await fetch(`http://185.125.217.66:8080/api/log`, {
+          const response = await fetch(`http://185.125.217.66:8080/api/log`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'Accept': 'application/json'
             },
             body: JSON.stringify(logData)
           });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('Log sent successfully:', result);
         } catch (error) {
           console.error('Error sending log:', error);
         }
@@ -901,55 +911,76 @@
       }
 
       // Функция для отправки чека в Telegram бота
-      function sendReceiptToBot(receiptText) {
+      async function sendReceiptToBot(receiptText) {
         try {
           console.log("Отправка чека в бота...");
           
           // Проверяем доступность API Telegram
-          if (window.Telegram && window.Telegram.WebApp) {
-            // Подготавливаем данные
-            const payload = JSON.stringify({
-              action: 'receipt',
-              text: receiptText,
-              orderId: currentOrderDetails.OrderId,
-              token: authToken,
-              orderSum: currentOrderDetails.OrderSum
-            });
-            
-            console.log("Данные для отправки:", payload);
-            
-            // Отправляем чек через API
-            fetch(`http://185.125.217.66:8080/api/receipt`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: payload
-            })
-            .then(response => response.json())
-            .then(data => {
-              if (data.status === 'success') {
-                // После успешной отправки через API, отправляем данные в WebApp
-                Telegram.WebApp.sendData(payload);
-                console.log("Чек отправлен");
-                return true;
-              } else {
-                throw new Error(data.error || 'Ошибка отправки чека');
-              }
-            })
-            .catch(error => {
-              console.error("Ошибка при отправке чека через API:", error);
-              // Если API недоступен, пробуем отправить напрямую через WebApp
-              Telegram.WebApp.sendData(payload);
-              return true;
-            });
-          } else {
-            console.error("Telegram WebApp API недоступен");
-            return false;
+          if (!window.Telegram || !window.Telegram.WebApp) {
+            throw new Error("Telegram WebApp API недоступен");
           }
+
+          // Подготавливаем данные
+          const payload = {
+            action: 'receipt',
+            text: receiptText,
+            orderId: currentOrderDetails.OrderId,
+            token: authToken,
+            orderSum: currentOrderDetails.OrderSum
+          };
+          
+          console.log("Данные для отправки:", payload);
+          
+          // Сначала отправляем через API
+          const apiResponse = await fetch(`http://185.125.217.66:8080/api/receipt`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (!apiResponse.ok) {
+            throw new Error(`API error! status: ${apiResponse.status}`);
+          }
+
+          const apiResult = await apiResponse.json();
+          console.log("API response:", apiResult);
+
+          // После успешной отправки через API, отправляем данные в WebApp
+          Telegram.WebApp.sendData(JSON.stringify(payload));
+          console.log("Чек отправлен через WebApp");
+          
+          return true;
         } catch (error) {
           console.error("Ошибка при отправке чека:", error);
+          alert("Ошибка при отправке чека: " + error.message);
           return false;
+        }
+      }
+
+      // Обновляем функцию sendReceipt для использования async/await
+      async function sendReceipt(encodedReceiptText) {
+        const receiptText = decodeURIComponent(encodedReceiptText);
+        console.log("Подготовка к отправке чека...");
+        
+        await sendLog('send_receipt_attempt', {
+          order_id: currentOrderDetails.OrderId
+        });
+        
+        const success = await sendReceiptToBot(receiptText);
+        
+        if (success) {
+          await sendLog('send_receipt_success', {
+            order_id: currentOrderDetails.OrderId
+          });
+          console.log("Команда на отправку чека выполнена успешно");
+        } else {
+          await sendLog('send_receipt_error', {
+            error: 'Failed to send receipt'
+          });
+          alert("Не удалось отправить чек. Проверьте консоль для деталей.");
         }
       }
 
@@ -986,29 +1017,6 @@
         } catch (error) {
           console.error('Ошибка при копировании чека:', error);
           alert('Не удалось скопировать чек. Попробуйте вручную выделить и скопировать текст.');
-        }
-      }
-
-      async function sendReceipt(encodedReceiptText) {
-        const receiptText = decodeURIComponent(encodedReceiptText);
-        console.log("Подготовка к отправке чека...");
-        
-        await sendLog('send_receipt_attempt', {
-          order_id: currentOrderDetails.OrderId
-        });
-        
-        const success = sendReceiptToBot(receiptText);
-        
-        if (success) {
-          await sendLog('send_receipt_success', {
-            order_id: currentOrderDetails.OrderId
-          });
-          console.log("Команда на отправку чека выполнена успешно");
-        } else {
-          await sendLog('send_receipt_error', {
-            error: 'Failed to send receipt'
-          });
-          alert("Не удалось отправить чек. Возможно, вы не используете Telegram WebApp.");
         }
       }
 
