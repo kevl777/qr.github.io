@@ -787,6 +787,9 @@
           return;
         }
 
+        const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
+        const sumAfterDiscount = currentOrderDetails.OrderSum - apiDiscount;
+
         discountResultCard.innerHTML += `
           <div class="close-order-section">
             <div class="toggle-container">
@@ -809,6 +812,7 @@
                 pattern="[0-9]*"
                 step="0.01"
                 onclick="this.value=''"
+                oninput="updateFinalSum()"
               />
             </div>
 
@@ -832,11 +836,31 @@
                 pattern="[0-9]*"
                 step="0.01"
                 onclick="this.value=''"
+                oninput="updateFinalSum()"
               />
+            </div>
+            <div id="finalSumDisplay" style="margin: 20px 0; padding: 15px; background-color: rgba(255, 255, 255, 0.05); border-radius: var(--border-radius);">
+              <p>💵 Итоговая сумма: ${sumAfterDiscount.toFixed(2)} руб.</p>
             </div>
             <button onclick="closeOrder()">Закрыть заказ</button>
           </div>
         `;
+      }
+
+      function updateFinalSum() {
+        const apiDiscount = parseFloat(lastGetDiscountResponse.SumDiscount || 0);
+        const sumAfterDiscount = currentOrderDetails.OrderSum - apiDiscount;
+        
+        const bonusToggle = document.getElementById("bonusToggle");
+        const depositToggle = document.getElementById("depositToggle");
+        const bonusWriteOff = bonusToggle.checked ? parseFloat(document.getElementById("bonusWriteOff").value) || 0 : 0;
+        const depositWriteOff = depositToggle.checked ? parseFloat(document.getElementById("depositWriteOff").value) || 0 : 0;
+
+        const finalSum = sumAfterDiscount - bonusWriteOff - depositWriteOff;
+        const finalSumDisplay = document.getElementById("finalSumDisplay");
+        if (finalSumDisplay) {
+          finalSumDisplay.innerHTML = `<p>💵 Итоговая сумма: ${finalSum.toFixed(2)} руб.</p>`;
+        }
       }
 
       function toggleAmountInput(type) {
@@ -851,6 +875,7 @@
           inputContainer.classList.remove('visible');
           input.value = 0;
         }
+        updateFinalSum();
       }
 
       async function closeOrder() {
