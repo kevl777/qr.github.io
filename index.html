@@ -485,7 +485,8 @@
         orderSection.style.display = "none";
         discountResultCard.style.display = "none";
 
-        await sendLog('search_client_attempt', { query: query });
+        // НЕ ждем отправки лога
+        sendLog('search_client_attempt', { query: query });
 
         try {
           // Попытка поиска по CardNumber
@@ -516,7 +517,8 @@
 
           if (data.Status === 1) {
             currentClientId = data.ClientId;
-            await sendLog('search_client_success', {
+            // НЕ ждем отправки лога
+            sendLog('search_client_success', {
               client_id: data.ClientId,
               found_by: data.CardNumber ? 'card' : 'phone'
             });
@@ -525,22 +527,24 @@
             <p>ФИО: ${data.LastName || ""} ${data.FirstName || ""} ${data.MiddleName || ""}</p>
             <p>📞 Телефон: ${data.Phone || ""}</p>
             <p>💳 Номер карты: ${data.CardNumber || ""}</p>
-            <p>- - - - - - - - - - - - - - - - - - - - - - - - - - -</p>
+            <p>- - - - - - - - - - - - - - - - - - - - - - - -</p>
             <p>🎁 Бонусный баланс: ${data.BonusBalance || 0}</p>
             <p>💰 Депозитный баланс: ${data.DepositBalance || 0}</p>
-            <p>- - - - - - - - - - - - - - - - - - - - - - - - - - -</p>
+            <p>- - - - - - - - - - - - - - - - - - - - - - - -</p>
             <p>🔆 Уровень: ${data.LoyaltyLevel || "Без уровня"}</p>
             <button onclick="showCreateOrderForm()">Создать заказ</button>
           `;
           } else {
             currentClientId = null;
-            await sendLog('search_client_error', { error: data.ErrorMessage });
+            // НЕ ждем отправки лога
+            sendLog('search_client_error', { error: data.ErrorMessage });
             resultCard.innerHTML = `<p>⚠️ ${data.ErrorMessage || "Клиент не найден"}</p>`;
           }
         } catch (error) {
           currentClientId = null;
           console.error("Ошибка API:", error);
-          await sendLog('search_client_error', { error: error.message });
+          // НЕ ждем отправки лога
+          sendLog('search_client_error', { error: error.message });
           resultCard.innerHTML = "<p>❌ Ошибка подключения к API.</p>";
         } finally {
           showLoading(false);
@@ -647,14 +651,14 @@
             const sumAfterDiscount = orderSum - apiDiscount;
 
             discountResultCard.innerHTML = `
-              <h4>Результат расчета привилегий:</h4>
-              <p>Скидка по уровню привилегий: ${apiDiscount.toFixed(2)} руб.</p>
+              <h4>Результат расчета</h4>
+              <p>Скидка по уровню: ${apiDiscount.toFixed(2)} руб.</p>
               <p>Макс. списание бонусов: ${lastGetDiscountResponse.MaxBonus || 0}</p>
               <p>Макс. списание депозита: ${lastGetDiscountResponse.MaxDeposit || 0}</p>
+              <p>- - - - - - - - - - - - - - - - - - - - - - - -</p>
               <p>Промежуточная сумма (с учетом скидки): ${sumAfterDiscount.toFixed(2)} руб.</p>
               <p><i>* Итоговая сумма будет рассчитана с учетом списания бонусов и депозита</i></p>
-              <p>Сообщение от API: ${lastGetDiscountResponse.Message || "Нет"}</p>
-              <button onclick="showCloseOrderOptions()">Перейти к закрытию заказа</button>
+              <button onclick="showCloseOrderOptions()">Закрыть заказ</button>
             `;
             // OrderSumWithCardDiscount is the sum after card discount but before bonus/deposit
             // We need to update OrderSumWithDiscount for the CloseOrder call if bonuses/deposits are applied.
@@ -664,7 +668,7 @@
               error: lastGetDiscountResponse.ErrorMessage
             });
             discountResultCard.innerHTML = `<p>⚠️ ${
-              lastGetDiscountResponse.ErrorMessage || "Ошибка расчета привилегий"
+              lastGetDiscountResponse.ErrorMessage || "Ошибка расчета заказа"
             }</p>`;
           }
         } catch (error) {
@@ -679,7 +683,7 @@
 
       function showCloseOrderOptions() {
         if (!lastGetDiscountResponse || lastGetDiscountResponse.Status !== 1) {
-          alert("Сначала успешно рассчитайте привилегии.");
+          alert("Сначала успешно рассчитайте заказ.");
           return;
         }
         // Add input fields for bonus and deposit write-off, pre-filled with max values
@@ -720,7 +724,7 @@
 
       async function closeOrder() {
         if (!lastGetDiscountResponse || !currentOrderDetails.OrderId) {
-          alert("Нет данных для закрытия заказа. Пожалуйста, рассчитайте привилегии сначала.");
+          alert("Нет данных для закрытия заказа. Пожалуйста, рассчитайте заказ сначала.");
           return;
         }
 
