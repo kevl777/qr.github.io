@@ -703,14 +703,16 @@
         orderSection.style.display = "block";
         document.getElementById("orderSum").value = "";
         
-        // Скрываем дополнительное пространство
-        const scrollSpace = document.querySelector('.scroll-space');
-        if (scrollSpace) {
-          scrollSpace.classList.add('hidden');
-        }
-        
         discountResultCard.innerHTML = "";
         discountResultCard.style.display = "none";
+
+        // Добавляем автоматическую прокрутку в конец страницы
+        setTimeout(() => {
+          window.scrollTo({
+            top: document.body.scrollHeight,
+            behavior: 'smooth'
+          });
+        }, 100);
       }
 
       function generateUUID() { // Simple UUID generator
