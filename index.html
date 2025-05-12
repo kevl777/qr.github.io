@@ -202,6 +202,19 @@
         font-size: 14px;
       }
 
+      /* Стили для дополнительного пространства */
+      .scroll-space {
+        height: 25vh; /* 1/4 высоты экрана */
+        background-color: var(--bg-color);
+        margin-top: 20px;
+        transition: height 0.3s ease;
+      }
+
+      .scroll-space.hidden {
+        height: 0;
+        margin: 0;
+      }
+
       /* Стили для разделительной линии */
       hr {
         border: none;
@@ -363,6 +376,8 @@
           </div>
           <button onclick="calculateDiscount()">Рассчитать заказ</button>
         </div>
+        <!-- Добавляем пустое пространство для скролла -->
+        <div class="scroll-space"></div>
         <!-- Вынесли discountResultCard за пределы orderSection для независимой видимости -->
         <div class="result-card" id="discountResultCard" style="display: none; margin-top: 10px;"></div>
       </div>
@@ -676,6 +691,12 @@
         }
         orderSection.style.display = "block";
         document.getElementById("orderSum").value = "";
+        
+        // Скрываем дополнительное пространство
+        const scrollSpace = document.querySelector('.scroll-space');
+        if (scrollSpace) {
+          scrollSpace.classList.add('hidden');
+        }
         
         discountResultCard.innerHTML = "";
         discountResultCard.style.display = "none";
@@ -1008,6 +1029,12 @@
         discountResultCard.innerHTML = "";
         orderSection.style.display = "none";
         document.getElementById("searchInput").value = "";
+
+        // Показываем дополнительное пространство
+        const scrollSpace = document.querySelector('.scroll-space');
+        if (scrollSpace) {
+          scrollSpace.classList.remove('hidden');
+        }
       }
 
       // Функция для копирования чека в буфер обмена
