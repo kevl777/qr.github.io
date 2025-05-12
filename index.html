@@ -385,7 +385,7 @@
               onblur="handleInputBlur()"
             />
           </div>
-          <button onclick="calculateDiscount()">Рассчитать заказ</button>
+          <button onclick="calculateDiscount()">🔍 Рассчитать заказ</button>
           <!-- Добавляем невидимое пространство для скролла -->
           <div class="scroll-space"></div>
         </div>
@@ -1154,6 +1154,11 @@
         if (toggle.checked) {
           inputContainer.classList.add('visible');
           input.value = lastGetDiscountResponse[`Max${type.charAt(0).toUpperCase() + type.slice(1)}`] || 0;
+          
+          // Добавляем автоматическую прокрутку к появившемуся полю ввода
+          setTimeout(() => {
+            inputContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }, 100);
         } else {
           inputContainer.classList.remove('visible');
           input.value = 0;
